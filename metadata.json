@@ -1,0 +1,13 @@
+{
+  "name": "Angela",
+  "description": "A diagnosis-first enterprise copilot for actionable intelligence and evidence-bound decision support.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "Data Diagnosis",
+    "Evidence-Bound Drafting",
+    "Clearance-Aware Retrieval"
+  ]
+}
