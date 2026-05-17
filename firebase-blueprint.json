@@ -1,0 +1,25 @@
+{
+  "entities": {
+    "evidenceItem": {
+      "title": "Evidence Item",
+      "description": "A piece of project evidence",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "workspaceId": { "type": "string" },
+        "content": { "type": "string" },
+        "zone": { "type": "string", "enum": ["public", "diagnostic", "restricted"] },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "timestamp": { "type": "string" },
+        "metadata": { "type": "object", "additionalProperties": true }
+      },
+      "required": ["id", "workspaceId", "content", "zone", "tags"]
+    }
+  },
+  "firestore": {
+    "/workspaces/{workspaceId}/evidenceStore/{evidenceId}": {
+      "schema": { "$ref": "#/entities/evidenceItem" },
+      "description": "Stores evidence items for a specific workspace"
+    }
+  }
+}

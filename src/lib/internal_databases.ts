@@ -14,16 +14,16 @@ export const harbourTowerData = {
     { id: "DOC-06", fileName: "Wind_Tunnel_Test_Results.pdf", fileType: "PDF", sizeMB: 15.6, uploadDate: "-2 days", uploadedBy: "SH-03", tags: ["engineering", "aerodynamics", "risk"] }
   ],
   decisions: [
-    { id: "DEC-01", decisionSummary: "Proceed with 14-floor model instead of 10-floor base case.", dateDecided: "July 15, 2024", decidedBy: "SH-01", rationale: "Financial modeling shows the $38.6M uplift is only viable with 14 floors to offset the podium reinforcement costs.", sourceDocumentId: "DOC-03" },
-    { id: "DEC-02", decisionSummary: "Initiate independent structural peer review.", dateDecided: "August 2, 2024", decidedBy: "SH-03", rationale: "Given the age of the 1998 podium as-builts, independent verification of lateral load capacity is required.", sourceDocumentId: "DOC-05" },
-    { id: "DEC-03", decisionSummary: "Alter podium setbacks on North facade.", dateDecided: "August 20, 2024", decidedBy: "SH-02", rationale: "Required to address direct feedback from the city council regarding waterfront sightlines.", sourceDocumentId: "DOC-04" },
-    { id: "DEC-04", decisionSummary: "Commission additional wind tunnel testing.", dateDecided: "August 22, 2024", decidedBy: "SH-01", rationale: "Mitigate aerodynamic risks resulting from the new 14-floor form factor.", sourceDocumentId: "DOC-06" }
+    { id: "DEC-01", decisionSummary: "Proceed with 14-floor model instead of 10-floor base case.", dateDecided: "July 15, 2024", decidedBy: "SH-01", rationale: "Financial modeling shows the $38.6M uplift is only viable with 14 floors to offset the podium reinforcement costs.", sourceDocumentId: "DOC-03", confidenceScore: 0.92 },
+    { id: "DEC-02", decisionSummary: "Initiate independent structural peer review.", dateDecided: "August 2, 2024", decidedBy: "SH-03", rationale: "Given the age of the 1998 podium as-builts, independent verification of lateral load capacity is required.", sourceDocumentId: "DOC-05", confidenceScore: 0.85 },
+    { id: "DEC-03", decisionSummary: "Alter podium setbacks on North facade.", dateDecided: "August 20, 2024", decidedBy: "SH-02", rationale: "Required to address direct feedback from the city council regarding waterfront sightlines.", sourceDocumentId: "DOC-04", confidenceScore: 0.76 },
+    { id: "DEC-04", decisionSummary: "Commission additional wind tunnel testing.", dateDecided: "August 22, 2024", decidedBy: "SH-01", rationale: "Mitigate aerodynamic risks resulting from the new 14-floor form factor.", sourceDocumentId: "DOC-06", confidenceScore: 0.88 }
   ],
   risks: [
-    { id: "RSK-01", riskTitle: "Structural Podium Failure", description: "Existing podium cannot support the lateral loads of the 14 new floors without significant, unbudgeted reinforcement.", impact: "High", likelihood: "Medium", riskScore: 15, mitigatingStakeholderId: "SH-03" },
-    { id: "RSK-02", riskTitle: "Planning Approval Delay", description: "Council rejects the revised setbacks, delaying the project start date and voiding locked-in contractor rates.", impact: "High", likelihood: "Medium", riskScore: 12, mitigatingStakeholderId: "SH-02" },
-    { id: "RSK-03", riskTitle: "Cost Escalation", description: "Supply chain issues increase the cost of specialized glass facades modeled in the $38.6M uplift figure.", impact: "Medium", likelihood: "High", riskScore: 10, mitigatingStakeholderId: "SH-04" },
-    { id: "RSK-04", riskTitle: "Wind Load Discrepancies", description: "New wind tunnel results necessitate a redesign of the upper three floors' facade system.", impact: "High", likelihood: "Low", riskScore: 8, mitigatingStakeholderId: "SH-03" }
+    { id: "RSK-01", riskTitle: "Structural Podium Failure", description: "Existing podium cannot support the lateral loads of the 14 new floors without significant, unbudgeted reinforcement.", impact: "High", likelihood: "Medium", riskScore: 15, mitigatingStakeholderId: "SH-03", confidenceScore: 0.72 },
+    { id: "RSK-02", riskTitle: "Planning Approval Delay", description: "Council rejects the revised setbacks, delaying the project start date and voiding locked-in contractor rates.", impact: "High", likelihood: "Medium", riskScore: 12, mitigatingStakeholderId: "SH-02", confidenceScore: 0.81 },
+    { id: "RSK-03", riskTitle: "Cost Escalation", description: "Supply chain issues increase the cost of specialized glass facades modeled in the $38.6M uplift figure.", impact: "Medium", likelihood: "High", riskScore: 10, mitigatingStakeholderId: "SH-04", confidenceScore: 0.65 },
+    { id: "RSK-04", riskTitle: "Wind Load Discrepancies", description: "New wind tunnel results necessitate a redesign of the upper three floors' facade system.", impact: "High", likelihood: "Low", riskScore: 8, mitigatingStakeholderId: "SH-03", confidenceScore: 0.89 }
   ],
   timeline: [
     { id: "PH-01", phaseName: "Feasibility & Modeling", targetDate: "June 2024", status: "completed" },

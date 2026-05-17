@@ -1,11 +1,13 @@
 import React from 'react';
 import './HomePage.css';
+import { Lock } from 'lucide-react';
 
 interface HomePageProps {
   onEnter: () => void;
+  onAdminEnter: () => void;
 }
 
-export default function HomePage({ onEnter }: HomePageProps) {
+export default function HomePage({ onEnter, onAdminEnter }: HomePageProps) {
   return (
     <div className="landing-root">
       <div className="site-shell">
@@ -22,7 +24,7 @@ export default function HomePage({ onEnter }: HomePageProps) {
               <a href="#trust">Trust</a>
             </div>
             <div className="nav-actions">
-              <button className="action-button" onClick={onEnter}>Admin login</button>
+              <button className="action-button" onClick={onAdminEnter}><Lock size={14} style={{display: 'inline-block', marginRight: '6px', verticalAlign: 'text-bottom'}} /> Admins</button>
               <button className="action-button primary" onClick={onEnter}>Enter Advisor</button>
             </div>
           </div>

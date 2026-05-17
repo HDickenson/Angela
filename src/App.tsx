@@ -6,9 +6,10 @@
 import { useState, useEffect, useRef } from 'react';
 import HomePage from './HomePage.tsx';
 import Workspace from './Workspace.tsx';
+import AdminIngestionArea from './AdminIngestionArea.tsx';
 
 export default function App() {
-  const [showLanding, setShowLanding] = useState(true);
+  const [currentView, setCurrentView] = useState<'landing' | 'workspace' | 'admin'>('landing');
   const [activeWorkspaceId, setActiveWorkspaceId] = useState('harbour-tower');
   const [chatMessage, setChatMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<{role: 'user' | 'agent', text: string}[]>([]);
@@ -85,7 +86,7 @@ export default function App() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: currentInput, role: 'triage_analyst', workspaceId: activeWorkspaceId })
+        body: JSON.stringify({ message: currentInput, role: 'analyst', workspaceId: activeWorkspaceId })
       });
       const data = await res.json();
       if (res.status === 403) {
@@ -98,8 +99,15 @@ export default function App() {
     }
   };
 
-  if (showLanding) {
-    return <HomePage onEnter={() => setShowLanding(false)} />;
+  if (currentView === 'admin') {
+    return <AdminIngestionArea onExit={() => setCurrentView('landing')} />;
+  }
+
+  if (currentView === 'landing') {
+    return <HomePage 
+      onEnter={() => setCurrentView('workspace')} 
+      onAdminEnter={() => setCurrentView('admin')} 
+    />;
   }
 
   return (
@@ -112,8 +120,8 @@ export default function App() {
       handleChat={handleChat}
       isListening={isListening}
       handleToggleListening={handleToggleListening}
-      onExit={() => setShowLanding(true)}
-      currentRole="triage_analyst"
+      onExit={() => setCurrentView('landing')}
+      currentRole="analyst"
     />
   );
 }

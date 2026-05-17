@@ -56,7 +56,7 @@ export function Sidebar({ currentRole, isCollapsed, onToggleCollapse, activeWork
         {!isCollapsed && (
           <div>
             <strong className="small">Amelia Hart</strong>
-            <small>{currentRole === 'reviewer' ? 'Reviewer / Admin' : 'Strategy & Proposals'}</small>
+            <small>{currentRole === 'admin' ? 'Reviewer / Admin' : 'Strategy & Proposals'}</small>
           </div>
         )}
       </div>

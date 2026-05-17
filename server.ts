@@ -136,21 +136,6 @@ export async function createApp() {
       const ws = workspaces[workspaceId as keyof typeof workspaces];
       const evidenceStore = ws ? ws.evidenceStore : [];
       
-      const inspection = inspectPrompt(context);
-      if (!inspection.safe) {
-        // Log security denial
-        auditLogs.unshift({
-          id: `AUD-${Math.floor(Math.random() * 10000)}`,
-          action: "Diagnosis Generation",
-          actor: role || "Unknown",
-          verdict: "DENY",
-          trigger_reason: inspection.reason,
-          evidence_ids: [],
-          timestamp: new Date().toISOString()
-        });
-        return res.status(403).json({ error: "Security violation detected in diagnosis context.", reason: inspection.reason });
-      }
-
       // Filter evidence by clearance
       const visibleEvidence = evidenceStore.filter(e => {
         if (clearance === "restricted") return true;

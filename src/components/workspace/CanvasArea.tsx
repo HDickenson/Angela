@@ -17,6 +17,8 @@ import {
   MoreHorizontal,
   Database,
   RefreshCw,
+  Maximize,
+  Minimize,
 } from "lucide-react";
 
 const SystemFooter = ({
@@ -127,7 +129,13 @@ export interface CanvasAreaProps {
 
 export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
   const [hoveredConnector, setHoveredConnector] = useState<string | null>(null);
-  const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState(false);
+  const [evidenceModalTargetId, setEvidenceModalTargetId] = useState<string | null>(null);
+  const [evidenceSearchQuery, setEvidenceSearchQuery] = useState("");
+  const [isCreatingNewEvidence, setIsCreatingNewEvidence] = useState(false);
+  const [newEvidenceTitle, setNewEvidenceTitle] = useState("");
+  const [newEvidenceType, setNewEvidenceType] = useState("note");
+  const [newEvidenceCategory, setNewEvidenceCategory] = useState("Technical");
+  const [canvasFilterCategory, setCanvasFilterCategory] = useState("All");
   const [draggedEvidenceDoc, setDraggedEvidenceDoc] = useState<any>(null);
   const [linkedEvidenceDocs, setLinkedEvidenceDocs] = useState<any[]>([]);
   const [isDragOverDropZone, setIsDragOverDropZone] = useState(false);
@@ -147,6 +155,25 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
   const [camera, setCamera] = useState({ x: 50, y: 30, z: 1 });
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen?.().catch(err => {
+        console.error("Error attempting to enable fullscreen:", err);
+      });
+    } else {
+      document.exitFullscreen?.();
+    }
+  };
 
   useEffect(() => {
     fetch(`/api/workspace/${activeWorkspaceId}`)
@@ -434,6 +461,62 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
       setSelectionBox(null);
     }
     if (draggingItemId) {
+      const draggedItem = localItems[draggingItemId];
+      if (draggedItem && (draggedItem.type === "document" || draggedItem.type === "sheet" || draggedItem.type === "note" || draggedItem.type === "site")) {
+        if (containerRef.current) {
+          const rect = containerRef.current.getBoundingClientRect();
+          const cursorX = e.clientX - rect.left;
+          const cursorY = e.clientY - rect.top;
+          const cursorCanvasX = (cursorX - camera.x) / camera.z;
+          const cursorCanvasY = (cursorY - camera.y) / camera.z;
+
+          const targetDecisionId = Object.keys(localItems).find(id => {
+            if (id === draggingItemId) return false;
+            const item = localItems[id];
+            if (item.type === "decision") {
+              const boundsLeft = item.x;
+              const boundsRight = item.x + (item.w || 610);
+              const boundsTop = item.y;
+              const boundsBottom = item.y + (item.h || 168);
+              return cursorCanvasX >= boundsLeft && cursorCanvasX <= boundsRight &&
+                     cursorCanvasY >= boundsTop && cursorCanvasY <= boundsBottom;
+            }
+            return false;
+          });
+
+          if (targetDecisionId) {
+            const existingConnector = workspaceData?.canvas?.connectors?.find(
+              (c: any) => c.fromItemId === draggingItemId && c.toItemId === targetDecisionId
+            );
+            if (!existingConnector) {
+              const newConnector = {
+                id: `c-${Date.now()}`,
+                fromItemId: draggingItemId,
+                fromEdge: "bottom",
+                fromOffset: 0.5,
+                toItemId: targetDecisionId,
+                toEdge: "top",
+                toOffset: 0.2 + (Math.random() * 0.6),
+                type: "evidence_to_insight",
+                dataType: "document",
+                state: "verified",
+                direction: "one_way",
+                createdBy: "user",
+                explanation: "Linked via canvas drag and drop",
+                lastUpdated: "Just now"
+              };
+              setWorkspaceData((prev: any) => ({
+                ...prev,
+                canvas: {
+                  ...prev?.canvas,
+                  connectors: [...(prev?.canvas?.connectors || []), newConnector]
+                }
+              }));
+            }
+          }
+        }
+      }
+
       setDraggingItemId(null);
       setDragStartCursor(null);
       setDragStartItems({});
@@ -541,6 +624,33 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                   cy={p2.y}
                   r={isHovered ? 6 : 4}
                 />
+                
+                {c.confidence !== undefined && (
+                  <g transform={`translate(${(p1.x + p2.x) / 2}, ${(p1.y + p2.y) / 2})`}>
+                    <rect
+                      x="-22"
+                      y="-12"
+                      width="44"
+                      height="24"
+                      rx="12"
+                      fill={c.confidence >= 0.8 ? "rgba(16, 185, 129, 0.15)" : c.confidence >= 0.5 ? "rgba(245, 158, 11, 0.15)" : "rgba(239, 68, 68, 0.15)"}
+                      stroke={c.confidence >= 0.8 ? "rgba(16, 185, 129, 0.5)" : c.confidence >= 0.5 ? "rgba(245, 158, 11, 0.5)" : "rgba(239, 68, 68, 0.5)"}
+                      strokeWidth="1"
+                    />
+                    <text
+                      x="0"
+                      y="3.5"
+                      fontSize="10"
+                      fontWeight="600"
+                      fontFamily="var(--font-mono)"
+                      fill={c.confidence >= 0.8 ? "#10b981" : c.confidence >= 0.5 ? "#f59e0b" : "#ef4444"}
+                      textAnchor="middle"
+                      style={{ pointerEvents: "none" }}
+                    >
+                      {Math.round(c.confidence * 100)}%
+                    </text>
+                  </g>
+                )}
               </g>
             );
           })}
@@ -565,6 +675,12 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
         {Object.values(items).map((item: any) => {
           const isSelected = selectedIds.includes(item.id);
           const isDragging = draggingItemId === item.id || (draggingItemId && selectedIds.includes(draggingItemId) && isSelected);
+          
+          let isFilterMismatch = false;
+          if (canvasFilterCategory !== "All") {
+            // we dim if it has a category and it mismatches, OR if we want to strict filter, we might dim anything that doesn't explicitly match
+            isFilterMismatch = item.category !== canvasFilterCategory;
+          }
 
           const style = {
             position: "absolute",
@@ -573,6 +689,9 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
             width: item.w,
             height: item.h,
             zIndex: isDragging ? 20 : (isSelected ? 5 : 1),
+            opacity: isFilterMismatch ? 0.2 : (isDragging ? 0.8 : 1),
+            pointerEvents: isFilterMismatch ? "none" as const : "auto" as const,
+            transition: isDragging ? "none" : "opacity 0.2s ease-in-out",
           } as React.CSSProperties;
           
           const PinIcon =
@@ -710,7 +829,20 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                     <div className="strong small">
                       {doc.fileName || "Document"}
                     </div>
-                    <div className="tiny muted">
+                    {item.category && (
+                      <div className="tiny" style={{
+                        display: "inline-block",
+                        padding: "2px 6px",
+                        background: "var(--accent)",
+                        color: "var(--background)",
+                        borderRadius: "4px",
+                        marginTop: "4px",
+                        fontWeight: 600
+                      }}>
+                        {item.category}
+                      </div>
+                    )}
+                    <div className="tiny muted" style={{ marginTop: item.category ? "4px" : "0" }}>
                       {doc.sizeMB || "Unknown"} MB
                     </div>
                   </div>
@@ -876,10 +1008,63 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                 onDrop={(e) => {
                   e.preventDefault();
                   try {
-                    const data = JSON.parse(e.dataTransfer.getData("application/json"));
-                    // We simply add it to the state if you want, but for now just logging or maybe opening a toast
-                    console.log("Dropped on decision card: ", data);
-                  } catch (err) {}
+                    const doc = JSON.parse(e.dataTransfer.getData("application/json"));
+                    
+                    const existingNode = Object.values(localItems).find((n: any) => n.dataId === doc.id);
+                    const nodeId = existingNode ? (existingNode as any).id : `doc-${doc.id}-${Date.now()}`;
+                    
+                    if (!existingNode) {
+                      setLocalItems(prev => ({
+                        ...prev,
+                        [nodeId]: {
+                          id: nodeId,
+                          type: "document",
+                          dataId: doc.id,
+                          category: doc.category || newEvidenceCategory,
+                          x: item.x,
+                          y: item.y - 200,
+                          w: 220,
+                          h: 176
+                        }
+                      }));
+                    }
+                    
+                    // Add connector
+                    const existingConnector = workspaceData?.canvas?.connectors?.find(
+                      (c: any) => c.fromItemId === nodeId && c.toItemId === item.id
+                    );
+                    
+                    if (!existingConnector) {
+                      setWorkspaceData((prev: any) => ({
+                        ...prev,
+                        canvas: {
+                          ...prev?.canvas,
+                          connectors: [...(prev?.canvas?.connectors || []), {
+                            id: `c-${Date.now()}`,
+                            fromItemId: nodeId,
+                            fromEdge: "bottom",
+                            fromOffset: 0.5,
+                            toItemId: item.id,
+                            toEdge: "top",
+                            toOffset: 0.2 + (Math.random() * 0.6),
+                            type: "evidence_to_insight",
+                            dataType: "document",
+                            state: "verified",
+                            direction: "one_way",
+                            createdBy: "user",
+                            explanation: "Linked via drag and drop",
+                            lastUpdated: "Just now"
+                          }]
+                        }
+                      }));
+                    }
+                    
+                    if (evidenceModalTargetId) {
+                      setEvidenceModalTargetId(null);
+                    }
+                  } catch (err) {
+                    console.error("Failed to parse dropped doc", err);
+                  }
                 }}
               >
                 <button
@@ -889,37 +1074,38 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                   <Pin size={14} />
                 </button>
                 <div className="card-title">Decision Log</div>
-                <table style={{ width: "100%" }}>
-                  <thead>
-                    <tr>
-                      <th>Decision</th>
-                      <th>Date</th>
-                      <th>Decided by</th>
-                      <th>Rationale</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {workspaceData.decisions.map((d: any) => (
-                      <tr key={d.id} style={{ alignContent: "flex-start" }}>
-                        <td>
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "6px",
-                            }}
-                          >
-                            <CheckCircle2 size={12} color="var(--brass)" />{" "}
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "12px" }}>
+                  {workspaceData.decisions.map((d: any) => (
+                    <div key={d.id} style={{
+                      background: "rgba(255,255,255,0.02)",
+                      border: "1px solid var(--line)",
+                      borderRadius: "6px",
+                      padding: "12px"
+                    }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
+                          <CheckCircle2 size={14} color="var(--brass)" style={{ marginTop: "2px" }} />
+                          <div style={{ fontWeight: 600, fontSize: "14px", lineHeight: "1.3" }}>
                             {d.decisionSummary}
                           </div>
-                        </td>
-                        <td className="muted">{d.dateDecided}</td>
-                        <td>{d.decidedBy}</td>
-                        <td className="muted">{d.rationale}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                        {d.confidenceScore && (
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(16, 185, 129, 0.1)", padding: "2px 8px", borderRadius: "12px", border: "1px solid rgba(16, 185, 129, 0.2)" }}>
+                            <span style={{ fontSize: "11px", color: "#10b981", fontWeight: 600 }}>
+                              {Math.round(d.confidenceScore * 100)}% Confidence
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "8px", paddingLeft: "22px" }}>
+                        <span style={{ color: "var(--text)" }}>{d.decidedBy}</span> • {d.dateDecided}
+                      </div>
+                      <div style={{ fontSize: "13px", color: "var(--muted)", lineHeight: "1.4", paddingLeft: "22px" }}>
+                        {d.rationale}
+                      </div>
+                    </div>
+                  ))}
+                </div>
                 <div
                   style={{
                     marginTop: "12px",
@@ -944,7 +1130,12 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                   </button>
                   <button
                     className="button primary"
-                    onClick={() => setIsEvidenceModalOpen(true)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEvidenceModalTargetId(item.id);
+                      setLinkedEvidenceDocs([]); // clear on open
+                      setEvidenceSearchQuery("");
+                    }}
                     style={{
                       fontSize: "12px",
                       padding: "4px 8px",
@@ -993,52 +1184,59 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                 >
                   <AlertTriangle size={14} color="#f87171" /> Risk Register
                 </div>
-                <table style={{ width: "100%" }}>
-                  <thead>
-                    <tr>
-                      <th>Risk</th>
-                      <th>Impact</th>
-                      <th>Likelihood</th>
-                      <th>Score</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {workspaceData.risks.map((r: any) => {
-                      const isHigh = r.impact === "High" || r.riskScore > 14;
-                      return (
-                        <tr key={r.id}>
-                          <td>{r.riskTitle}</td>
-                          <td>
-                            <span
-                              style={{
-                                padding: "2px 6px",
-                                borderRadius: "4px",
-                                fontSize: "10px",
-                                background: isHigh
-                                  ? "rgba(248, 113, 113, 0.15)"
-                                  : "rgba(255, 255, 255, 0.05)",
-                                color: isHigh ? "#fca5a5" : "var(--muted)",
-                              }}
-                            >
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "12px" }}>
+                  {workspaceData.risks.map((r: any) => {
+                    const isHigh = r.impact === "High" || r.riskScore > 14;
+                    return (
+                      <div key={r.id} style={{
+                        background: isHigh ? "rgba(248, 113, 113, 0.04)" : "rgba(255,255,255,0.02)",
+                        border: "1px solid var(--line)",
+                        borderColor: isHigh ? "rgba(248, 113, 113, 0.2)" : "var(--line)",
+                        borderRadius: "6px",
+                        padding: "12px"
+                      }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                          <div style={{ fontWeight: 600, fontSize: "14px", lineHeight: "1.3" }}>
+                            {r.riskTitle}
+                          </div>
+                          {r.confidenceScore && (
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(16, 185, 129, 0.1)", padding: "2px 8px", borderRadius: "12px", border: "1px solid rgba(16, 185, 129, 0.2)", marginLeft: "12px", flexShrink: 0 }}>
+                              <span style={{ fontSize: "11px", color: "#10b981", fontWeight: 600 }}>
+                                {Math.round(r.confidenceScore * 100)}% Confidence
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "10px", fontSize: "12px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{ color: "var(--muted)" }}>Impact:</span>
+                            <span style={{ padding: "2px 6px", borderRadius: "4px", fontSize: "10px", background: isHigh ? "rgba(248, 113, 113, 0.15)" : "rgba(255, 255, 255, 0.05)", color: isHigh ? "#fca5a5" : "var(--muted)" }}>
                               {r.impact}
                             </span>
-                          </td>
-                          <td className="muted">{r.likelihood}</td>
-                          <td>
-                            <span
-                              style={{
-                                fontWeight: isHigh ? 600 : 400,
-                                color: isHigh ? "#fca5a5" : "inherit",
-                              }}
-                            >
+                          </div>
+                          <div style={{ color: "var(--line)" }}>|</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{ color: "var(--muted)" }}>Likelihood:</span>
+                            <span style={{ color: "var(--text)" }}>{r.likelihood}</span>
+                          </div>
+                          <div style={{ color: "var(--line)" }}>|</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{ color: "var(--muted)" }}>Score:</span>
+                            <span style={{ fontWeight: isHigh ? 600 : 400, color: isHigh ? "#fca5a5" : "inherit" }}>
                               {r.riskScore}
                             </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            <div style={{ width: "32px", height: "4px", background: "rgba(255,255,255,0.1)", borderRadius: "2px", overflow: "hidden" }}>
+                              <div style={{ width: `${Math.min((r.riskScore / 25) * 100, 100)}%`, height: "100%", background: r.riskScore >= 15 ? "#ef4444" : r.riskScore >= 10 ? "#f59e0b" : "#10b981", borderRadius: "2px" }} />
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: "13px", color: "var(--muted)", lineHeight: "1.4" }}>
+                          {r.description}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
                 <SystemFooter
                   system="Riskonnect GRC"
                   status="synced"
@@ -1333,6 +1531,44 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
       </div>
 
       <div
+        className="canvas-controls"
+        style={{
+          position: "absolute",
+          top: "24px",
+          right: "24px",
+          display: "flex",
+          gap: "8px",
+          alignItems: "center",
+          background: "var(--panel)",
+          padding: "8px 12px",
+          borderRadius: "6px",
+          border: "1px solid var(--line)",
+          boxShadow: "var(--shadow-sm)",
+          zIndex: 50,
+        }}
+      >
+        <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text)" }}>Filter Evidence:</span>
+        <select
+          value={canvasFilterCategory}
+          onChange={(e) => setCanvasFilterCategory(e.target.value)}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "var(--text)",
+            fontSize: "12px",
+            outline: "none",
+            cursor: "pointer"
+          }}
+        >
+          <option value="All">All Categories</option>
+          <option value="Technical">Technical</option>
+          <option value="Financial">Financial</option>
+          <option value="Compliance">Compliance</option>
+          <option value="Risk">Risk</option>
+        </select>
+      </div>
+
+      <div
         className="context-menu"
         role="menu"
         aria-label="Canvas contextual add menu"
@@ -1354,7 +1590,7 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
         </button>
       </div>
 
-      {isEvidenceModalOpen && (
+      {evidenceModalTargetId && (
         <div
           style={{
             position: "fixed",
@@ -1395,7 +1631,7 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                 Link Evidence to Decision
               </h3>
               <button
-                onClick={() => setIsEvidenceModalOpen(false)}
+                onClick={() => setEvidenceModalTargetId(null)}
                 style={{
                   fontSize: "20px",
                   color: "var(--muted)",
@@ -1455,7 +1691,7 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
               </div>
               <div style={{ padding: "12px" }}>
                 <p style={{ fontSize: "14px", fontWeight: "500", margin: "0 0 12px 0" }}>
-                  Decision: Reallocate engineering resources to address APAC logistics delay.
+                  Decision: {workspaceData?.decisions?.find((d: any) => d.id === evidenceModalTargetId)?.decisionSummary || (localItems[evidenceModalTargetId] && localItems[evidenceModalTargetId]?.title) || "Selected decision details not available"}
                 </p>
                 {linkedEvidenceDocs.length > 0 ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -1469,10 +1705,31 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                         border: "1px solid var(--line)",
                         display: "flex",
                         alignItems: "center",
+                        justifyContent: "space-between",
                         gap: "8px"
                       }}>
-                        <Link2 size={14} style={{ color: "var(--brass)" }} />
-                        {d.fileName}
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <Link2 size={14} style={{ color: "var(--brass)" }} />
+                          {d.fileName}
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setLinkedEvidenceDocs(linkedEvidenceDocs.filter(doc => doc.id !== d.id));
+                          }}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "var(--muted)",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            display: "flex",
+                            alignItems: "center",
+                            padding: "0"
+                          }}
+                        >
+                          ×
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -1492,82 +1749,320 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
               </div>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "8px",
-                maxHeight: "200px",
-                overflowY: "auto",
-              }}
-            >
-              {workspaceData?.documents?.map((doc: any) => (
-                <label
-                  key={doc.id}
-                  draggable
-                  onDragStart={(e) => {
-                    setDraggedEvidenceDoc(doc);
-                    e.dataTransfer.setData("application/json", JSON.stringify(doc));
-                    e.dataTransfer.effectAllowed = "copy";
-                  }}
-                  onDragEnd={() => setDraggedEvidenceDoc(null)}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <input
+                type="text"
+                placeholder="Search evidence by keyword, tag, or date..."
+                value={evidenceSearchQuery}
+                onChange={(e) => setEvidenceSearchQuery(e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: "8px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--line)",
+                  background: "var(--panel)",
+                  color: "var(--text)",
+                  fontSize: "13px",
+                  marginRight: "12px"
+                }}
+              />
+              <button
+                className="button"
+                onClick={() => setIsCreatingNewEvidence(!isCreatingNewEvidence)}
+                style={{ padding: "8px 12px", fontSize: "13px", flexShrink: 0 }}
+              >
+                {isCreatingNewEvidence ? "Cancel Action" : "+ Create New"}
+              </button>
+            </div>
+
+            {isCreatingNewEvidence && (
+              <div style={{ 
+                padding: "16px", 
+                border: "1px solid var(--line)", 
+                borderRadius: "6px", 
+                background: "var(--card)",
+                marginBottom: "16px"
+              }}>
+                <h4 style={{ margin: "0 0 12px 0", fontSize: "14px", fontWeight: "600" }}>Create New Evidence</h4>
+                <input
+                  type="text"
+                  placeholder="Evidence title or file name..."
+                  value={newEvidenceTitle}
+                  onChange={(e) => setNewEvidenceTitle(e.target.value)}
                   style={{
-                    padding: "12px",
-                    border: "1px solid var(--line)",
+                    width: "100%",
+                    padding: "8px 12px",
                     borderRadius: "6px",
-                    cursor: "grab",
-                    background: "var(--card)",
-                    display: "flex",
-                    alignItems: "start",
-                    gap: "12px",
-                    opacity: draggedEvidenceDoc?.id === doc.id ? 0.5 : 1,
+                    border: "1px solid var(--line)",
+                    background: "var(--panel)",
+                    color: "var(--text)",
+                    marginBottom: "12px",
+                    fontSize: "13px"
+                  }}
+                />
+                <select
+                  value={newEvidenceType}
+                  onChange={(e) => setNewEvidenceType(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--line)",
+                    background: "var(--panel)",
+                    color: "var(--text)",
+                    marginBottom: "12px",
+                    fontSize: "13px"
                   }}
                 >
-                  <input 
-                    type="checkbox" 
-                    style={{ marginTop: "4px" }} 
-                    checked={linkedEvidenceDocs.some(d => d.id === doc.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) setLinkedEvidenceDocs([...linkedEvidenceDocs, doc]);
-                      else setLinkedEvidenceDocs(linkedEvidenceDocs.filter(d => d.id !== doc.id));
+                  <option value="note">Local Note</option>
+                  <option value="document">Document (PDF/DOCX)</option>
+                  <option value="spreadsheet">Spreadsheet</option>
+                </select>
+                <select
+                  value={newEvidenceCategory}
+                  onChange={(e) => setNewEvidenceCategory(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--line)",
+                    background: "var(--panel)",
+                    color: "var(--text)",
+                    marginBottom: "12px",
+                    fontSize: "13px"
+                  }}
+                >
+                  <option value="Technical">Technical</option>
+                  <option value="Financial">Financial</option>
+                  <option value="Compliance">Compliance</option>
+                  <option value="Risk">Risk</option>
+                </select>
+                <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                  <button
+                    className="button primary"
+                    onClick={() => {
+                      if (!newEvidenceTitle.trim()) return;
+                      const newDoc = {
+                        id: `NEW-${Math.floor(Math.random() * 100000)}`,
+                        fileName: newEvidenceTitle,
+                        fileType: newEvidenceType === "document" ? "PDF" : newEvidenceType === "spreadsheet" ? "XLSX" : "TXT",
+                        sizeMB: 0.1,
+                        uploadDate: "Just now",
+                        tags: ["new", newEvidenceType],
+                        category: newEvidenceCategory,
+                      };
+                      setLinkedEvidenceDocs([...linkedEvidenceDocs, newDoc]);
+                      setNewEvidenceTitle("");
+                      setIsCreatingNewEvidence(false);
                     }}
-                  />
-                  <div>
-                    <div style={{ fontSize: "14px", fontWeight: 600 }}>
-                      {doc.fileName || "Document"}
+                  >
+                    Add & Link Evidence
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!isCreatingNewEvidence && (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px",
+                  maxHeight: "200px",
+                  overflowY: "auto",
+                }}
+              >
+                {workspaceData?.documents?.filter((doc: any) => {
+                  const q = evidenceSearchQuery.toLowerCase();
+                  return !q || 
+                         doc.fileName?.toLowerCase().includes(q) || 
+                         doc.tags?.some((t: string) => t.toLowerCase().includes(q)) || 
+                         doc.uploadDate?.toLowerCase().includes(q);
+                }).map((doc: any) => (
+                  <label
+                    key={doc.id}
+                    draggable
+                    onDragStart={(e) => {
+                      setDraggedEvidenceDoc(doc);
+                      e.dataTransfer.setData("application/json", JSON.stringify(doc));
+                      e.dataTransfer.effectAllowed = "copy";
+                    }}
+                    onDragEnd={() => setDraggedEvidenceDoc(null)}
+                    style={{
+                      padding: "12px",
+                      border: "1px solid var(--line)",
+                      borderRadius: "6px",
+                      cursor: "grab",
+                      background: "var(--card)",
+                      display: "flex",
+                      alignItems: "start",
+                      gap: "12px",
+                      opacity: draggedEvidenceDoc?.id === doc.id ? 0.5 : 1,
+                    }}
+                  >
+                    <input 
+                      type="checkbox" 
+                      style={{ marginTop: "4px" }} 
+                      checked={linkedEvidenceDocs.some(d => d.id === doc.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) setLinkedEvidenceDocs([...linkedEvidenceDocs, doc]);
+                        else setLinkedEvidenceDocs(linkedEvidenceDocs.filter(d => d.id !== doc.id));
+                      }}
+                    />
+                    <div>
+                      <div style={{ fontSize: "14px", fontWeight: 600 }}>
+                        {doc.fileName || "Document"}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+                        {doc.tags?.[0] || "Evidence"} •{" "}
+                        {doc.sizeMB ? `${doc.sizeMB} MB` : "Unknown size"}
+                      </div>
                     </div>
-                    <div style={{ fontSize: "12px", color: "var(--muted)" }}>
-                      {doc.tags?.[0] || "Evidence"} •{" "}
-                      {doc.sizeMB ? `${doc.sizeMB} MB` : "Unknown size"}
-                    </div>
-                  </div>
-                </label>
-              ))}
-            </div>
+                  </label>
+                ))}
+              </div>
+            )}
             <div
               style={{
                 marginTop: "24px",
                 display: "flex",
-                justifyContent: "flex-end",
-                gap: "12px",
+                justifyContent: "space-between",
+                alignItems: "center",
               }}
             >
-              <button
-                onClick={() => setIsEvidenceModalOpen(false)}
-                style={{ padding: "6px 12px", color: "var(--text)" }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => setIsEvidenceModalOpen(false)}
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <span style={{ fontSize: "12px", color: "var(--muted)" }}>Category:</span>
+                <select
+                  value={newEvidenceCategory}
+                  onChange={(e) => setNewEvidenceCategory(e.target.value)}
+                  style={{
+                    padding: "4px 8px",
+                    borderRadius: "4px",
+                    border: "1px solid var(--line)",
+                    background: "var(--panel)",
+                    color: "var(--text)",
+                    fontSize: "12px"
+                  }}
+                >
+                  <option value="Technical">Technical</option>
+                  <option value="Financial">Financial</option>
+                  <option value="Compliance">Compliance</option>
+                  <option value="Risk">Risk</option>
+                </select>
+              </div>
+              <div style={{ display: "flex", gap: "12px" }}>
+                <button
+                  onClick={() => setEvidenceModalTargetId(null)}
+                  style={{ padding: "6px 12px", color: "var(--text)" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                  if (evidenceModalTargetId && localItems[evidenceModalTargetId]) {
+                    const decisionNode = localItems[evidenceModalTargetId];
+                    const newItems: any = {};
+                    const newConnectors: any[] = [];
+                    
+                    linkedEvidenceDocs.forEach((doc, idx) => {
+                      const existingNode = Object.values(localItems).find((item: any) => item.dataId === doc.id);
+                      const nodeId = existingNode ? (existingNode as any).id : `doc-${doc.id}-${Date.now()}`;
+                      
+                      if (!existingNode) {
+                        newItems[nodeId] = {
+                          id: nodeId,
+                          type: "document",
+                          dataId: doc.id,
+                          category: doc.category || newEvidenceCategory,
+                          x: decisionNode.x + (idx * 240),
+                          y: decisionNode.y - 220,
+                          w: 220,
+                          h: 176
+                        };
+                      }
+                      
+                      const existingConnector = workspaceData?.canvas?.connectors?.find(
+                        (c: any) => c.fromItemId === nodeId && c.toItemId === decisionNode.id
+                      );
+                      
+                      if (!existingConnector) {
+                        newConnectors.push({
+                          id: `c-${Date.now()}-${idx}`,
+                          fromItemId: nodeId,
+                          fromEdge: "bottom",
+                          fromOffset: 0.5,
+                          toItemId: decisionNode.id,
+                          toEdge: "top",
+                          toOffset: 0.2 + (Math.random() * 0.6),
+                          type: "evidence_to_insight",
+                          dataType: "document",
+                          state: "verified",
+                          direction: "one_way",
+                          createdBy: "user",
+                          explanation: "Manually linked evidence",
+                          lastUpdated: "Just now"
+                        });
+                      }
+                    });
+                    
+                    if (Object.keys(newItems).length > 0) {
+                      setLocalItems(prev => ({ ...prev, ...newItems }));
+                    }
+                    if (newConnectors.length > 0) {
+                      setWorkspaceData((prev: any) => ({
+                        ...prev,
+                        canvas: {
+                          ...prev?.canvas,
+                          connectors: [...(prev?.canvas?.connectors || []), ...newConnectors]
+                        }
+                      }));
+                    }
+                  }
+                  
+                  setEvidenceModalTargetId(null);
+                }}
                 className="button primary"
               >
                 Link Selected
               </button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      <div
+        style={{
+          position: "absolute",
+          bottom: "24px",
+          right: "24px",
+          zIndex: 50,
+          display: "flex",
+          gap: "8px"
+        }}
+      >
+        <button
+          onClick={toggleFullscreen}
+          className="button"
+          style={{
+            background: "var(--card)",
+            border: "1px solid var(--line)",
+            borderRadius: "50%",
+            width: "40px",
+            height: "40px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--text)",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            cursor: "pointer"
+          }}
+          aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+        >
+          {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+        </button>
+      </div>
     </section>
   );
 }

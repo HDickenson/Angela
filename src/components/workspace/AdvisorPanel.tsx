@@ -38,8 +38,30 @@ export function AdvisorPanel({
             </div>
             <div className="risk-panel">
               <h3>Top Planning Risks</h3>
-              <div className="risk-item"><div className="risk-num">1</div><div className="risk-copy"><strong>Planning approval delay</strong>High impact · Medium likelihood<br/>Council feedback on height and podium setback.</div></div>
-              <div className="risk-item"><div className="risk-num">2</div><div className="risk-copy"><strong>Community objections</strong>Medium impact · Medium likelihood<br/>Noise and overshadowing concerns raised in consultation.</div></div>
+              <div className="risk-item">
+                <div className="risk-num">1</div>
+                <div className="risk-copy" style={{ width: '100%', display: 'block' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                    <span style={{ color: 'var(--text)', fontWeight: 'bold' }}>Planning approval delay</span>
+                    <span style={{ fontSize: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '2px 6px', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.5)' }}>85% Confidence</span>
+                  </div>
+                  <div style={{ color: 'var(--muted)', lineHeight: '1.5', fontSize: '12px' }}>
+                    High impact · Medium likelihood<br/>Council feedback on height and podium setback.
+                  </div>
+                </div>
+              </div>
+              <div className="risk-item">
+                <div className="risk-num">2</div>
+                <div className="risk-copy" style={{ width: '100%', display: 'block' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                    <span style={{ color: 'var(--text)', fontWeight: 'bold' }}>Community objections</span>
+                    <span style={{ fontSize: '10px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', padding: '2px 6px', borderRadius: '12px', border: '1px solid rgba(245, 158, 11, 0.5)' }}>72% Confidence</span>
+                  </div>
+                  <div style={{ color: 'var(--muted)', lineHeight: '1.5', fontSize: '12px' }}>
+                    Medium impact · Medium likelihood<br/>Noise and overshadowing concerns raised in consultation.
+                  </div>
+                </div>
+              </div>
             </div>
           </>
         ) : (

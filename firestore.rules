@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Role-based helper function (Hackathon mode: normally users/{userId})
+    function getUserRole() {
+      // If we don't have auth, default deny
+      return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    match /workspaces/{workspaceId} {
+      // Workspace root can be read by any authenticated person for now
+      allow read: if request.auth != null && request.auth.token.email_verified == true;
+      
+      match /evidenceStore/{evidenceId} {
+        // Validation helper
+        function isValidEvidenceItem(data) {
+          return data.keys().hasAll(['id', 'workspaceId', 'content', 'zone', 'tags'])
+              && data.id is string
+              && data.workspaceId is string
+              && data.content is string && data.content.size() <= 100000
+              && data.zone is string && (data.zone == 'public' || data.zone == 'diagnostic' || data.zone == 'restricted')
+              && data.tags is list && data.tags.size() <= 20
+              && (data.tags.size() == 0 || data.tags[0] is string);
+        }
+
+        // List security enforces RBAC
+        // User -> 'public'
+        // Analyst -> 'public' | 'diagnostic'
+        // Admin -> all
+        allow list: if request.auth != null && request.auth.token.email_verified == true && (
+          (getUserRole() == 'admin') ||
+          (getUserRole() == 'analyst' && resource.data.zone in ['public', 'diagnostic']) ||
+          (getUserRole() == 'user' && resource.data.zone == 'public')
+        );
+
+        allow get: if request.auth != null && request.auth.token.email_verified == true && isValidId(evidenceId) && (
+          (getUserRole() == 'admin') ||
+          (getUserRole() == 'analyst' && resource.data.zone in ['public', 'diagnostic']) ||
+          (getUserRole() == 'user' && resource.data.zone == 'public')
+        );
+
+        // Only admins can ingest new evidence
+        allow create: if request.auth != null && request.auth.token.email_verified == true 
+          && isValidId(workspaceId) && isValidId(evidenceId)
+          && getUserRole() == 'admin' 
+          && isValidEvidenceItem(request.resource.data)
+          && request.resource.data.workspaceId == workspaceId;
+          
+        allow update: if request.auth != null && request.auth.token.email_verified == true 
+          && isValidId(workspaceId) && isValidId(evidenceId)
+          && getUserRole() == 'admin' 
+          && isValidEvidenceItem(request.resource.data);
+
+        allow delete: if request.auth != null && request.auth.token.email_verified == true 
+          && isValidId(workspaceId) && isValidId(evidenceId)
+          && getUserRole() == 'admin';
+      }
+    }
+    
+    // Mock user store for RBAC
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // No creates or updates allowed from client to prevent privilege escalation
+    }
+  }
+}
