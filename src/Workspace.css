@@ -1202,6 +1202,289 @@
 .workspace-root .stakeholders { left: 576px; top: 405px; width: 198px; height: 210px; }
 .workspace-root .notes { left: 806px; top: 405px; width: 204px; height: 210px; }
 
+/* ─── ProposalCard ─────────────────────────────────────────────────────────── */
+.workspace-root .proposal-card {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,.028);
+  overflow: hidden;
+  font-size: var(--font-sm);
+}
+
+.workspace-root .proposal-header {
+  padding: 13px 14px 11px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(117,82,209,.07);
+}
+
+.workspace-root .proposal-kicker {
+  font-size: var(--font-xs);
+  text-transform: uppercase;
+  letter-spacing: .13em;
+  color: var(--muted-2);
+  margin-bottom: 3px;
+}
+
+.workspace-root .proposal-title {
+  font-size: var(--font-md);
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 5px;
+}
+
+.workspace-root .proposal-subtitle {
+  font-size: var(--font-xs);
+  color: var(--muted);
+  line-height: 1.5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+}
+
+.workspace-root .proposal-section {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.workspace-root .proposal-section:last-of-type { border-bottom: 0; }
+
+.workspace-root .proposal-section-label {
+  font-size: var(--font-xs);
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--muted-2);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.workspace-root .proposal-count {
+  font-size: var(--font-xs);
+  background: rgba(255,255,255,.07);
+  color: var(--muted);
+  border-radius: 10px;
+  padding: 1px 6px;
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.workspace-root .proposal-body {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+  font-size: var(--font-sm);
+}
+
+/* Decisions */
+.workspace-root .proposal-decisions { display: grid; gap: 8px; }
+
+.workspace-root .proposal-decision-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: start;
+  padding: 7px 8px;
+  border-radius: var(--radius-xs);
+  background: rgba(255,255,255,.022);
+  border: 1px solid var(--line);
+}
+
+.workspace-root .proposal-decision-id { padding-top: 1px; }
+
+.workspace-root .proposal-decision-summary {
+  font-size: var(--font-sm);
+  color: var(--text-2);
+  font-weight: 600;
+  margin-bottom: 3px;
+  line-height: 1.4;
+}
+
+.workspace-root .proposal-decision-meta {
+  font-size: var(--font-xs);
+  color: var(--muted-2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.workspace-root .proposal-decision-source { margin-left: auto; }
+
+.workspace-root .proposal-conf {
+  font-size: var(--font-xs);
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding-top: 1px;
+  white-space: nowrap;
+}
+
+/* Risks */
+.workspace-root .proposal-risks { display: grid; gap: 6px; }
+
+.workspace-root .proposal-risk-row {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 8px;
+  align-items: start;
+  padding: 6px 8px;
+  border-radius: var(--radius-xs);
+  background: rgba(255,255,255,.018);
+  border: 1px solid var(--line);
+}
+
+.workspace-root .proposal-risk-score {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-xs);
+  border: 1px solid currentColor;
+  font-size: var(--font-xs);
+  font-weight: 800;
+  font-family: var(--font-mono);
+}
+
+.workspace-root .proposal-risk-title {
+  font-size: var(--font-sm);
+  color: var(--text-2);
+  font-weight: 600;
+  margin-bottom: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.workspace-root .proposal-risk-meta {
+  font-size: var(--font-xs);
+  color: var(--muted-2);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* Actions */
+.workspace-root .proposal-actions { display: grid; gap: 6px; }
+
+.workspace-root .proposal-action-row {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 8px;
+  align-items: start;
+  padding: 6px 8px;
+  border-radius: var(--radius-xs);
+  background: rgba(255,255,255,.018);
+  border: 1px solid var(--line);
+}
+
+.workspace-root .proposal-action-num {
+  font-size: var(--font-xs);
+  font-weight: 800;
+  color: var(--violet);
+  padding-top: 2px;
+}
+
+.workspace-root .proposal-action-text {
+  font-size: var(--font-sm);
+  color: var(--text-2);
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.workspace-root .proposal-action-refs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.workspace-root .proposal-footer {
+  padding: 8px 14px;
+  border-top: 1px solid var(--line);
+  font-size: var(--font-xs);
+  color: var(--muted-2);
+  background: rgba(255,255,255,.014);
+  text-align: center;
+  letter-spacing: .04em;
+}
+
+/* ─── Guided Onboarding Notes ──────────────────────────────────────────────── */
+.workspace-root .onboarding-notes { display: grid; gap: 10px; }
+
+.workspace-root .onboarding-note {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  background: rgba(255,255,255,.022);
+  display: grid;
+  gap: 5px;
+  cursor: default;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.workspace-root .onboarding-note:hover {
+  background: rgba(255,255,255,.038);
+  border-color: rgba(117,82,209,.32);
+}
+
+.workspace-root .onboarding-note-step {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.workspace-root .onboarding-note-num {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--violet-soft);
+  color: #c5b3f8;
+  font-size: var(--font-xs);
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.workspace-root .onboarding-note-label {
+  font-size: var(--font-sm);
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+.workspace-root .onboarding-note-desc {
+  font-size: var(--font-xs);
+  color: var(--muted);
+  line-height: 1.5;
+  padding-left: 25px;
+}
+
+.workspace-root .onboarding-note-action {
+  margin-top: 4px;
+  padding-left: 25px;
+}
+
+.workspace-root .onboarding-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-xs);
+  color: var(--violet);
+  border: 1px solid rgba(117,82,209,.3);
+  background: var(--violet-soft);
+  border-radius: 10px;
+  padding: 3px 9px;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.workspace-root .onboarding-chip:hover {
+  background: rgba(117,82,209,.28);
+  color: #d4c8ff;
+}
+
 @media (max-width: 960px) {
   body { overflow: auto; }
   .workspace-root.app {
