@@ -22,14 +22,7 @@ const normalize = (input: string): string =>
   input.toLowerCase().replace(/\s+/g, " ").trim();
 
 export const SECURITY_PATTERNS = [
-  // 1. SENSITIVE_DATA
-  {
-    id: "SENSITIVE_DATA",
-    pattern: /\b(sensitive|confidential)\b/,
-    description: "Detected request involving sensitive or confidential data."
-  },
-
-  // 2. PROMPT_INJECTION
+  // 1. PROMPT_INJECTION
   // Matches: "ignore [anything] rules/instructions", "override [anything] rules/instructions",
   // "disregard previous"
   {

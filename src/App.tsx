@@ -16,15 +16,7 @@ export default function App() {
   const [chatMessage, setChatMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<{role: 'user' | 'agent', text: string, _id?: string}[]>([]);
   const [isListening, setIsListening] = useState(false);
-  const [lastDiagnosis, setLastDiagnosis] = useState<{ diagnosisId: string; hypothesis: string; confidence: number } | null>(null);
-  const [draftContent, setDraftContent] = useState<any | null>(null);
-  const [isDraftOpen, setIsDraftOpen] = useState(false);
-  const [isDraftLoading, setIsDraftLoading] = useState(false);
   const [isAgentThinking, setIsAgentThinking] = useState(false);
-
-  useEffect(() => {
-    setLastDiagnosis(null);
-  }, [activeWorkspaceId]);
 
   const recognitionRef = useRef<any>(null);
   const textBeforeListenRef = useRef('');
@@ -90,63 +82,6 @@ export default function App() {
   const authHeaders = (): Record<string, string> => {
     if (token) return { 'Authorization': `Bearer ${token}` };
     return { 'x-demo-role': 'analyst' };
-  };
-
-  const handleDiagnose = async () => {
-    if (!chatMessage.trim()) return;
-    const query = chatMessage;
-    setChatMessage('');
-    setChatHistory(prev => [...prev, { role: 'user', text: `[Diagnose] ${query}` }]);
-    setIsAgentThinking(true);
-
-    try {
-      const res = await fetch('/api/diagnose', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ context: query, workspaceId: activeWorkspaceId })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setChatHistory(prev => [...prev, { role: 'agent', text: `Diagnosis failed: ${data.error}` }]);
-        return;
-      }
-      setLastDiagnosis({ diagnosisId: data.diagnosisId, hypothesis: data.hypothesis, confidence: data.confidence });
-      const summary = `**Diagnosis:** ${data.hypothesis}\n**Confidence:** ${Math.round(data.confidence * 100)}%\n**Evidence cited:** ${(data.evidence_map || []).join(', ')}\n\n*Click "Generate Draft Report" to create a full report.*`;
-      setChatHistory(prev => [...prev, { role: 'agent', text: summary }]);
-    } catch (e) {
-      console.error('Diagnose failed', e);
-      setChatHistory(prev => [...prev, { role: 'agent' as const, text: 'Diagnosis failed. Please try again.' }]);
-    } finally {
-      setIsAgentThinking(false);
-    }
-  };
-
-  const handleGenerateDraft = async () => {
-    if (!lastDiagnosis) return;
-    setIsDraftLoading(true);
-    try {
-      const res = await fetch('/api/draft', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ diagnosisId: lastDiagnosis.diagnosisId, workspaceId: activeWorkspaceId })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        alert(`Draft generation failed: ${data.error}`);
-        return;
-      }
-      if (data.error === 'insufficient_evidence_for_draft') {
-        alert('Insufficient evidence to generate a draft. Add more evidence and run a diagnosis first.');
-        return;
-      }
-      setDraftContent(data);
-      setIsDraftOpen(true);
-    } catch (e) {
-      console.error('Draft failed', e);
-      alert('Draft generation failed. Please try again.');
-    } finally {
-      setIsDraftLoading(false);
-    }
   };
 
   const handleChat = async () => {
@@ -226,13 +161,6 @@ export default function App() {
       handleToggleListening={handleToggleListening}
       onExit={() => setCurrentView('landing')}
       currentRole="analyst"
-      handleDiagnose={handleDiagnose}
-      handleGenerateDraft={handleGenerateDraft}
-      lastDiagnosis={lastDiagnosis}
-      isDraftLoading={isDraftLoading}
-      isDraftOpen={isDraftOpen}
-      setIsDraftOpen={setIsDraftOpen}
-      draftContent={draftContent}
       isAgentThinking={isAgentThinking}
     />
   );

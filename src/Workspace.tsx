@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import './Workspace.css';
-import { PanelRight } from 'lucide-react';
 
-import { Sidebar } from './components/workspace/Sidebar';
+import { LeftRail } from './components/workspace/LeftRail';
 import { ProjectHeader } from './components/workspace/ProjectHeader';
 import { CanvasArea } from './components/workspace/CanvasArea';
-import { AdvisorPanel } from './components/workspace/AdvisorPanel';
 import { StatusBar } from './components/workspace/StatusBar';
 import { PlaceholderTab } from './components/workspace/PlaceholderTab';
-import DraftModal from './components/workspace/DraftModal';
 import { initAuth, googleSignIn, logout } from './lib/firebase';
 import type { User } from 'firebase/auth';
 
@@ -24,13 +21,6 @@ export interface WorkspaceProps {
   handleToggleListening: () => void;
   onExit: () => void;
   currentRole: string;
-  handleDiagnose?: () => void;
-  handleGenerateDraft?: () => void;
-  lastDiagnosis?: { diagnosisId: string; hypothesis: string; confidence: number } | null;
-  isDraftLoading?: boolean;
-  isDraftOpen?: boolean;
-  setIsDraftOpen?: (open: boolean) => void;
-  draftContent?: any | null;
   isAgentThinking?: boolean;
 }
 
@@ -46,19 +36,10 @@ export default function Workspace({
   handleToggleListening,
   onExit,
   currentRole,
-  handleDiagnose,
-  handleGenerateDraft,
-  lastDiagnosis,
-  isDraftLoading,
-  isDraftOpen,
-  setIsDraftOpen,
-  draftContent,
   isAgentThinking
 }: WorkspaceProps) {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState('projects');
   const [activeProjectView, setActiveProjectView] = useState('canvas');
-  const [isAdvisorOpen, setIsAdvisorOpen] = useState(true);
 
   const [needsAuth, setNeedsAuth] = useState(true);
   const [token, setToken] = useState<string | null>(null);
@@ -110,23 +91,22 @@ export default function Workspace({
   };
 
   return (
-    <div 
-      className="workspace-root app" 
-      style={{ 
-        '--sidebar': isSidebarCollapsed ? '76px' : '240px',
-        '--advisor': isAdvisorOpen ? '360px' : '0px'
-      } as React.CSSProperties}
-    >
-      <Sidebar 
-        currentRole={currentRole} 
-        isCollapsed={isSidebarCollapsed} 
-        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+    <div className="workspace-root app">
+      <LeftRail
+        currentRole={currentRole}
         activeWorkspaceId={activeWorkspaceId}
         setActiveWorkspaceId={setActiveWorkspaceId}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        chatMessage={chatMessage}
+        setChatMessage={setChatMessage}
+        chatHistory={chatHistory}
+        handleChat={handleChat}
+        isListening={isListening}
+        handleToggleListening={handleToggleListening}
+        isAgentThinking={isAgentThinking}
       />
-      
+
       <header className="topbar">
         <div className="workspace-switcher">
           {activeWorkspaceId === 'harbour-tower' ? 'Harbour Tower Extension' : activeWorkspaceId === 'facilities' ? 'Facilities Management' : activeWorkspaceId === 'enterprise' ? 'Enterprise Operations' : 'Project Workspace'}⌄
@@ -151,13 +131,6 @@ export default function Workspace({
               Logout Google
             </button>
           ))}
-          <button 
-            onClick={() => setIsAdvisorOpen(!isAdvisorOpen)}
-            style={{ display: 'grid', placeItems: 'center', width: '32px', height: '32px', borderRadius: 'var(--radius)', background: isAdvisorOpen ? 'rgba(255,255,255,0.08)' : 'transparent', color: isAdvisorOpen ? 'var(--text)' : 'var(--muted)', cursor: 'pointer', border: 'none' }}
-            title="Toggle Advisor"
-          >
-            <PanelRight size={18} strokeWidth={2} />
-          </button>
         </div>
       </header>
 
@@ -179,29 +152,6 @@ export default function Workspace({
           <PlaceholderTab tabName={activeTab} />
         )}
       </main>
-      
-      {isAdvisorOpen && (
-        <AdvisorPanel
-          chatMessage={chatMessage}
-          setChatMessage={setChatMessage}
-          chatHistory={chatHistory}
-          handleChat={handleChat}
-          isListening={isListening}
-          handleToggleListening={handleToggleListening}
-          onClose={() => setIsAdvisorOpen(false)}
-          onDiagnose={handleDiagnose}
-          onGenerateDraft={handleGenerateDraft}
-          lastDiagnosis={lastDiagnosis}
-          isDraftLoading={isDraftLoading}
-          isAgentThinking={isAgentThinking}
-        />
-      )}
-
-      <DraftModal
-        draft={draftContent ?? null}
-        isOpen={isDraftOpen ?? false}
-        onClose={() => setIsDraftOpen?.(false)}
-      />
 
       <StatusBar />
     </div>
