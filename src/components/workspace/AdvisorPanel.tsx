@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Mic, FileText, AlertTriangle, CheckSquare, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { Mic, AlertTriangle, CheckSquare, ArrowRight, ArrowUp, ChevronDown } from 'lucide-react';
 
 export interface AdvisorPanelProps {
   chatMessage: string;
@@ -13,9 +13,11 @@ export interface AdvisorPanelProps {
   activeWorkspaceId?: string;
 }
 
+// ─── Evidence chip renderer ────────────────────────────────────────────────
+
 const EV_PATTERN = /(\[(?:EV|RSK|DEC|DOC|ENT)-[A-Z0-9-]+\])/g;
 
-function renderWithEvidenceChipsSafe(text: string): React.ReactNode[] {
+function renderWithEvChips(text: string): React.ReactNode[] {
   EV_PATTERN.lastIndex = 0;
   const parts = text.split(EV_PATTERN);
   return parts.map((part, i) =>
@@ -25,95 +27,116 @@ function renderWithEvidenceChipsSafe(text: string): React.ReactNode[] {
   );
 }
 
-const COLLAPSIBLE_THRESHOLD = 120;
+// ─── Primitive message components ─────────────────────────────────────────
 
-function CollapsibleBubble({ text, isUser }: { text: string; isUser: boolean }) {
-  const [expanded, setExpanded] = React.useState(false);
-  const needsCollapse = !isUser && text.length > COLLAPSIBLE_THRESHOLD;
+function MsgAgent({ children }: { children: React.ReactNode }) {
   return (
-    <div>
-      <div className={`bubble${needsCollapse && !expanded ? ' bubble-collapsed' : ''}`}>
-        {renderWithEvidenceChipsSafe(text)}
-      </div>
-      {needsCollapse && (
-        <button className="bubble-toggle" onClick={() => setExpanded(e => !e)}>
-          {expanded ? 'Show less ↑' : 'Show more ↓'}
-        </button>
-      )}
+    <div className="msg msg-agent">
+      <div className="msg-avatar">A</div>
+      <div className="msg-body">{children}</div>
     </div>
   );
 }
 
-// ─── Harbour Tower Proposal ───────────────────────────────────────────────────
+function MsgAgentText({ text }: { text: string }) {
+  return (
+    <MsgAgent>
+      <div className="msg-text">{renderWithEvChips(text)}</div>
+    </MsgAgent>
+  );
+}
+
+function MsgUser({ text }: { text: string }) {
+  return (
+    <div className="msg msg-user">
+      <div className="msg-pill">{text}</div>
+    </div>
+  );
+}
+
+function ThinkingBubble() {
+  return (
+    <div className="msg msg-agent">
+      <div className="msg-avatar">A</div>
+      <div className="msg-body">
+        <div className="msg-thinking">
+          <div className="thinking-dot" />
+          <div className="thinking-dot" />
+          <div className="thinking-dot" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Harbour Tower Proposal ────────────────────────────────────────────────
 
 function ProposalCard() {
   const decisions = [
-    { id: 'DEC-01', summary: 'Proceed with 14-floor model',         doc: 'DOC-03', conf: 92, decidedBy: 'J. Miller',   date: 'Jul 15' },
-    { id: 'DEC-02', summary: 'Independent structural peer review',  doc: 'DOC-05', conf: 85, decidedBy: 'Dr. C. Wei', date: 'Aug 2'  },
-    { id: 'DEC-03', summary: 'Alter North facade setbacks',         doc: 'DOC-04', conf: 76, decidedBy: 'A. Hart',    date: 'Aug 20' },
-    { id: 'DEC-04', summary: 'Commission wind tunnel testing',       doc: 'DOC-06', conf: 88, decidedBy: 'J. Miller',  date: 'Aug 22' },
+    { id: 'DEC-01', summary: 'Proceed with 14-floor model',        doc: 'DOC-03', conf: 92, decidedBy: 'J. Miller',  date: 'Jul 15' },
+    { id: 'DEC-02', summary: 'Independent structural peer review', doc: 'DOC-05', conf: 85, decidedBy: 'Dr. C. Wei', date: 'Aug 2'  },
+    { id: 'DEC-03', summary: 'Alter North facade setbacks',        doc: 'DOC-04', conf: 76, decidedBy: 'A. Hart',    date: 'Aug 20' },
+    { id: 'DEC-04', summary: 'Commission wind tunnel testing',      doc: 'DOC-06', conf: 88, decidedBy: 'J. Miller',  date: 'Aug 22' },
   ];
-
   const risks = [
-    { id: 'RSK-01', title: 'Structural podium failure',  score: 15, impact: 'High',   likelihood: 'Med', color: '#ef4444', dec: 'DEC-02' },
-    { id: 'RSK-02', title: 'Planning approval delay',    score: 12, impact: 'High',   likelihood: 'Med', color: '#f59e0b', dec: 'DEC-03' },
-    { id: 'RSK-03', title: 'Cost escalation',            score: 10, impact: 'Med',    likelihood: 'High',color: '#f59e0b', dec: 'DEC-01' },
-    { id: 'RSK-04', title: 'Wind load discrepancies',    score: 8,  impact: 'High',   likelihood: 'Low', color: '#6b7280', dec: 'DEC-04' },
+    { id: 'RSK-01', title: 'Structural podium failure', score: 15, impact: 'High', likelihood: 'Med',  color: '#ef4444', dec: 'DEC-02' },
+    { id: 'RSK-02', title: 'Planning approval delay',   score: 12, impact: 'High', likelihood: 'Med',  color: '#f59e0b', dec: 'DEC-03' },
+    { id: 'RSK-03', title: 'Cost escalation',           score: 10, impact: 'Med',  likelihood: 'High', color: '#f59e0b', dec: 'DEC-01' },
+    { id: 'RSK-04', title: 'Wind load discrepancies',   score: 8,  impact: 'High', likelihood: 'Low',  color: '#6b7280', dec: 'DEC-04' },
   ];
-
   const actions = [
-    { text: 'Finalise podium structural report',    refs: ['RSK-01', 'DEC-02', 'DOC-02'] },
-    { text: 'Lodge revised setback drawings',       refs: ['RSK-02', 'DEC-03', 'DOC-04'] },
-    { text: 'Integrate wind tunnel results',        refs: ['RSK-04', 'DEC-04', 'DOC-06'] },
-    { text: 'Lock contractor rates before Oct',     refs: ['RSK-03', 'DEC-01', 'DOC-03'] },
+    { text: 'Finalise podium structural report',  refs: ['RSK-01', 'DEC-02', 'DOC-02'] },
+    { text: 'Lodge revised setback drawings',     refs: ['RSK-02', 'DEC-03', 'DOC-04'] },
+    { text: 'Integrate wind tunnel results',      refs: ['RSK-04', 'DEC-04', 'DOC-06'] },
+    { text: 'Lock contractor rates before Oct',  refs: ['RSK-03', 'DEC-01', 'DOC-03'] },
   ];
 
   return (
     <div className="proposal-card">
-      {/* Header */}
       <div className="proposal-header">
         <div className="proposal-kicker">Planning Approval Briefing · Aug 2024</div>
         <div className="proposal-title">Harbour Tower Extension</div>
         <div className="proposal-subtitle">
-          Angela synthesised <span className="ev-chip">[DOC-01]</span> <span className="ev-chip">[DOC-03]</span> <span className="ev-chip">[DOC-04]</span> <span className="ev-chip">[DOC-05]</span> <span className="ev-chip">[DOC-06]</span> and 4 decisions to generate this briefing.
+          Angela synthesised{' '}
+          {['DOC-01','DOC-03','DOC-04','DOC-05','DOC-06'].map(d => (
+            <span key={d} className="ev-chip">[{d}]</span>
+          ))}{' '}
+          and 4 decisions.
         </div>
       </div>
 
-      {/* Executive summary */}
       <div className="proposal-section">
         <div className="proposal-section-label">Executive Summary</div>
         <p className="proposal-body">
-          The $38.6M extension proceeds on the 14-floor model {renderWithEvidenceChipsSafe('[DEC-01]')} per the financial uplift analysis {renderWithEvidenceChipsSafe('[DOC-03]')}. Planning council approval is required before October 2024 to preserve locked contractor rates. Two structural and regulatory issues remain open before submission can proceed.
+          The $38.6M extension proceeds on the 14-floor model {renderWithEvChips('[DEC-01]')} per the financial uplift analysis {renderWithEvChips('[DOC-03]')}. Planning council approval required before Oct 2024 to preserve locked contractor rates.
         </p>
       </div>
 
-      {/* Decisions */}
       <div className="proposal-section">
-        <div className="proposal-section-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <CheckSquare size={10} style={{ opacity: 0.7 }} /> Decisions on Record
+        <div className="proposal-section-label proposal-section-label--row">
+          <CheckSquare size={10} /> Decisions on Record
           <span className="proposal-count">{decisions.length}</span>
         </div>
         <div className="proposal-decisions">
           {decisions.map(d => (
             <div key={d.id} className="proposal-decision-row">
-              <div className="proposal-decision-id">{renderWithEvidenceChipsSafe(`[${d.id}]`)}</div>
+              <div className="proposal-decision-id">{renderWithEvChips(`[${d.id}]`)}</div>
               <div className="proposal-decision-body">
                 <div className="proposal-decision-summary">{d.summary}</div>
                 <div className="proposal-decision-meta">
                   {d.decidedBy} · {d.date}
-                  <span className="proposal-decision-source">{renderWithEvidenceChipsSafe(`[${d.doc}]`)}</span>
+                  <span className="proposal-decision-source">{renderWithEvChips(`[${d.doc}]`)}</span>
                 </div>
               </div>
-              <div className="proposal-conf" style={{ color: d.conf >= 85 ? '#10b981' : '#f59e0b' }}>{d.conf}%</div>
+              <div className={`proposal-conf ${d.conf >= 85 ? 'conf-high' : 'conf-med'}`}>{d.conf}%</div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Risks */}
       <div className="proposal-section">
-        <div className="proposal-section-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <AlertTriangle size={10} style={{ opacity: 0.7 }} /> Risk Profile
+        <div className="proposal-section-label proposal-section-label--row">
+          <AlertTriangle size={10} /> Risk Profile
           <span className="proposal-count">{risks.length} active</span>
         </div>
         <div className="proposal-risks">
@@ -121,18 +144,17 @@ function ProposalCard() {
             <div key={r.id} className="proposal-risk-row">
               <div className="proposal-risk-score" style={{ color: r.color, borderColor: `${r.color}40` }}>{r.score}</div>
               <div className="proposal-risk-body">
-                <div className="proposal-risk-title">{renderWithEvidenceChipsSafe(`[${r.id}]`)} {r.title}</div>
-                <div className="proposal-risk-meta">{r.impact} impact · {r.likelihood} likelihood → {renderWithEvidenceChipsSafe(`[${r.dec}]`)}</div>
+                <div className="proposal-risk-title">{renderWithEvChips(`[${r.id}]`)} {r.title}</div>
+                <div className="proposal-risk-meta">{r.impact} · {r.likelihood} → {renderWithEvChips(`[${r.dec}]`)}</div>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Next actions */}
       <div className="proposal-section">
-        <div className="proposal-section-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <ArrowRight size={10} style={{ opacity: 0.7 }} /> Recommended Actions
+        <div className="proposal-section-label proposal-section-label--row">
+          <ArrowRight size={10} /> Recommended Actions
         </div>
         <div className="proposal-actions">
           {actions.map((a, i) => (
@@ -141,9 +163,7 @@ function ProposalCard() {
               <div className="proposal-action-body">
                 <div className="proposal-action-text">{a.text}</div>
                 <div className="proposal-action-refs">
-                  {a.refs.map(r => (
-                    <span key={r} className="ev-chip">[{r}]</span>
-                  ))}
+                  {a.refs.map(r => <span key={r} className="ev-chip">[{r}]</span>)}
                 </div>
               </div>
             </div>
@@ -158,19 +178,19 @@ function ProposalCard() {
   );
 }
 
-// ─── Facilities Onboarding Notes ─────────────────────────────────────────────
+// ─── Facilities Onboarding Notes ───────────────────────────────────────────
 
 const FACILITIES_NOTES = [
   {
     num: 1,
     label: 'Select Data Sources',
-    desc: 'Connect your HVAC logs, maintenance records, and SLA documents so Angela can analyse the incident.',
+    desc: 'Connect HVAC logs, maintenance records, and SLA documents so Angela can analyse the incident.',
     chip: 'What data sources should I upload for this incident?',
   },
   {
     num: 2,
     label: 'Review Proposal Breakdown & Tasks',
-    desc: 'Angela will suggest a remediation plan, prioritised tasks, and owner assignments based on your sources.',
+    desc: 'Angela will suggest a remediation plan, prioritised tasks, and owner assignments.',
     chip: 'Suggest a remediation plan for the HVAC incident',
   },
   {
@@ -184,10 +204,7 @@ const FACILITIES_NOTES = [
 function FacilitiesOnboarding({ onChipClick }: { onChipClick: (chip: string) => void }) {
   return (
     <>
-      <div className="message">
-        <div className="spark">✦</div>
-        <div className="bubble">Hi — I'm ready to help manage the Facilities Management incident. Follow the steps below to get started.</div>
-      </div>
+      <MsgAgentText text="Hi — I'm ready to help manage the Facilities Management incident. Follow the steps below to get started." />
       <div className="onboarding-notes">
         {FACILITIES_NOTES.map(n => (
           <div key={n.num} className="onboarding-note">
@@ -208,7 +225,7 @@ function FacilitiesOnboarding({ onChipClick }: { onChipClick: (chip: string) => 
   );
 }
 
-// ─── Workspace context for non-HT workspaces ─────────────────────────────────
+// ─── Workspace context (enterprise) ───────────────────────────────────────
 
 const WORKSPACE_CONTEXT: Record<string, {
   greeting: string;
@@ -241,7 +258,7 @@ const HT_CHIPS = [
   "Draft the planning submission cover letter",
 ];
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Main component ────────────────────────────────────────────────────────
 
 export function AdvisorPanel({
   chatMessage,
@@ -255,12 +272,13 @@ export function AdvisorPanel({
   activeWorkspaceId = 'harbour-tower',
 }: AdvisorPanelProps) {
   const isHarbourTower = activeWorkspaceId === 'harbour-tower';
-  const isFacilities = activeWorkspaceId === 'facilities';
+  const isFacilities   = activeWorkspaceId === 'facilities';
   const ctx = WORKSPACE_CONTEXT[activeWorkspaceId];
 
-  const scrollRef = React.useRef<HTMLDivElement>(null);
-  const inputRef = React.useRef<HTMLTextAreaElement>(null);
+  const feedRef  = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [activeModel, setActiveModel] = useState('');
+  const [atBottom,    setAtBottom]    = useState(true);
 
   useEffect(() => {
     fetch('/api/health')
@@ -269,16 +287,35 @@ export function AdvisorPanel({
       .catch(() => {});
   }, []);
 
-  React.useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  // Scroll to bottom on initial mount so ProposalCard is visible
+  useLayoutEffect(() => {
+    if (feedRef.current) {
+      feedRef.current.scrollTop = feedRef.current.scrollHeight;
     }
-  }, [chatHistory, isAgentThinking]);
+  }, [activeWorkspaceId]);
+
+  // Scroll to bottom when conversation grows
+  useEffect(() => {
+    if (atBottom && feedRef.current) {
+      feedRef.current.scrollTop = feedRef.current.scrollHeight;
+    }
+  }, [chatHistory, isAgentThinking, atBottom]);
+
+  function handleScroll() {
+    const el = feedRef.current;
+    if (!el) return;
+    setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 60);
+  }
+
+  function scrollToBottom() {
+    feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: 'smooth' });
+    setAtBottom(true);
+  }
 
   function handleTextareaChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     setChatMessage(e.target.value);
     e.target.style.height = 'auto';
-    e.target.style.height = Math.min(e.target.scrollHeight, 80) + 'px';
+    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -289,6 +326,7 @@ export function AdvisorPanel({
   }
 
   function doSend() {
+    if (!chatMessage.trim()) return;
     handleChat();
     if (inputRef.current) inputRef.current.style.height = 'auto';
   }
@@ -302,20 +340,15 @@ export function AdvisorPanel({
 
   return (
     <div className={className}>
-      <div className="chat-scroll" ref={scrollRef}>
+      {/* Message feed */}
+      <div className="chat-feed" ref={feedRef} onScroll={handleScroll}>
         {chatHistory.length === 0 ? (
           <>
             {isHarbourTower ? (
               <>
-                <div className="message">
-                  <div className="spark">✦</div>
-                  <div className="bubble">Hi Amelia — I've reviewed the Harbour Tower project evidence. Here's a briefing ready for the planning committee.</div>
-                </div>
-                <div className="message user">
-                  <div className="bubble">Prepare a project briefing for planning committee.</div>
-                </div>
-                <div className="message">
-                  <div className="spark">✦</div>
+                <MsgAgentText text="Hi Amelia — I've reviewed the Harbour Tower evidence. Here's a planning briefing." />
+                <MsgUser text="Prepare a project briefing for planning committee." />
+                <div className="msg-card">
                   <ProposalCard />
                 </div>
               </>
@@ -323,28 +356,20 @@ export function AdvisorPanel({
               <FacilitiesOnboarding onChipClick={handleChipClick} />
             ) : ctx ? (
               <>
-                <div className="message">
-                  <div className="spark">✦</div>
-                  <div className="bubble">{ctx.greeting}</div>
-                </div>
-                <div className="message user">
-                  <div className="bubble">{ctx.sampleQ}</div>
-                </div>
-                <div className="message">
-                  <div className="spark">✦</div>
-                  <div className="bubble">{renderWithEvidenceChipsSafe(ctx.sampleA)}</div>
-                </div>
+                <MsgAgentText text={ctx.greeting} />
+                <MsgUser text={ctx.sampleQ} />
+                <MsgAgentText text={ctx.sampleA} />
                 <div className="risk-panel">
                   <h3>{ctx.riskTitle}</h3>
                   {ctx.risks.map((r, i) => (
                     <div className="risk-item" key={i}>
                       <div className="risk-num">{i + 1}</div>
-                      <div className="risk-copy" style={{ width: '100%', display: 'block' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                          <span style={{ color: 'var(--text)', fontWeight: 'bold' }}>{r.label}</span>
-                          <span style={{ fontSize: '10px', background: `${r.confColor}26`, color: r.confColor, padding: '2px 6px', borderRadius: '12px', border: `1px solid ${r.confColor}80` }}>{r.conf}</span>
+                      <div className="risk-copy">
+                        <div className="risk-copy-row">
+                          <span className="risk-label">{r.label}</span>
+                          <span className="risk-conf-badge" style={{ background: `${r.confColor}26`, color: r.confColor, borderColor: `${r.confColor}80` }}>{r.conf}</span>
                         </div>
-                        <div style={{ color: 'var(--muted)', lineHeight: '1.5', fontSize: '12px', whiteSpace: 'pre-line' }}>{r.detail}</div>
+                        <div className="risk-detail">{r.detail}</div>
                       </div>
                     </div>
                   ))}
@@ -354,31 +379,33 @@ export function AdvisorPanel({
           </>
         ) : (
           chatHistory.map((msg, i) => (
-            <div key={i} className={`message ${msg.role === 'user' ? 'user' : ''}`}>
-              {msg.role === 'agent' && <div className="spark">✦</div>}
-              {msg.role === 'agent' && msg.text === '__SECURITY_DENIED__' ? (
-                <div className="bubble security-denied">
-                  Request blocked by security layer. Rephrase and try again.
+            msg.role === 'user' ? (
+              <MsgUser key={i} text={msg.text} />
+            ) : msg.text === '__SECURITY_DENIED__' ? (
+              <div key={i} className="msg msg-agent">
+                <div className="msg-avatar">A</div>
+                <div className="msg-body">
+                  <div className="msg-denied">Request blocked by security layer. Rephrase and try again.</div>
                 </div>
-              ) : (
-                <CollapsibleBubble text={msg.text} isUser={msg.role === 'user'} />
-              )}
-            </div>
+              </div>
+            ) : (
+              <MsgAgentText key={i} text={msg.text} />
+            )
           ))
         )}
-        {isAgentThinking && (
-          <div className="message">
-            <div className="spark">✦</div>
-            <div className="thinking">
-              <div className="thinking-dot" />
-              <div className="thinking-dot" />
-              <div className="thinking-dot" />
-            </div>
-          </div>
-        )}
+
+        {isAgentThinking && <ThinkingBubble />}
       </div>
 
-      <div className="chat-input">
+      {/* Scroll-to-bottom FAB */}
+      {!atBottom && (
+        <button className="scroll-fab" onClick={scrollToBottom} aria-label="Scroll to bottom">
+          <ChevronDown size={14} />
+        </button>
+      )}
+
+      {/* Composer */}
+      <div className="chat-composer">
         {chatHistory.length === 0 && chips.length > 0 && (
           <div className="starter-chips">
             {chips.map(chip => (
@@ -388,51 +415,39 @@ export function AdvisorPanel({
             ))}
           </div>
         )}
-        <div className="input-shell" style={{ display: 'flex', height: 'auto', alignItems: 'center' }}>
+        <div className="composer-box">
           <textarea
             ref={inputRef}
+            className="composer-textarea"
             rows={1}
-            style={{
-              background: 'transparent',
-              outline: 'none',
-              border: 'none',
-              width: '100%',
-              color: 'var(--text)',
-              resize: 'none',
-              overflow: 'hidden',
-              fontFamily: 'inherit',
-              fontSize: '13px',
-              lineHeight: '1.5',
-              padding: '10px 0',
-              maxHeight: '80px',
-            }}
-            placeholder="Ask Angela about this project..."
+            placeholder="Ask Angela about this project…"
             value={chatMessage}
             onChange={handleTextareaChange}
             onKeyDown={handleKeyDown}
           />
-          <button
-            onClick={handleToggleListening}
-            style={{
-              marginLeft: '8px',
-              color: isListening ? 'var(--danger)' : 'var(--muted)',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              flexShrink: 0,
-              animation: isListening ? 'evidence-node-pulse 1.5s infinite' : 'none',
-            }}
-            title={isListening ? "Stop listening" : "Start voice input"}
-          >
-            <Mic size={18} fill="currentColor" strokeWidth={0} />
-          </button>
-          <button className="send" aria-label="Send message" onClick={doSend} style={{ flexShrink: 0 }}>→</button>
-        </div>
-        <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
-          <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', opacity: 0.8 }} /> Direct Routing
-          </span>
-          <span>{activeModel || 'angela'}</span>
+          <div className="composer-row">
+            <span className="composer-model">
+              <span className="dot-live" />
+              {activeModel || 'angela'}
+            </span>
+            <div className="composer-btns">
+              <button
+                className={`btn-mic${isListening ? ' btn-mic-active' : ''}`}
+                onClick={handleToggleListening}
+                title={isListening ? 'Stop listening' : 'Voice input'}
+              >
+                <Mic size={14} />
+              </button>
+              <button
+                className="btn-send"
+                aria-label="Send"
+                onClick={doSend}
+                disabled={!chatMessage.trim() && !isAgentThinking}
+              >
+                <ArrowUp size={14} strokeWidth={2.5} />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
