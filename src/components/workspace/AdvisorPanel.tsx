@@ -4,11 +4,16 @@ import { Mic } from 'lucide-react';
 export interface AdvisorPanelProps {
   chatMessage: string;
   setChatMessage: (msg: string) => void;
-  chatHistory: { role: 'user' | 'agent'; text: string }[];
+  chatHistory: { role: 'user' | 'agent'; text: string; _id?: string }[];
   handleChat: () => void;
   isListening: boolean;
   handleToggleListening: () => void;
   onClose?: () => void;
+  onDiagnose?: () => void;
+  onGenerateDraft?: () => void;
+  lastDiagnosis?: { diagnosisId: string; hypothesis: string; confidence: number } | null;
+  isDraftLoading?: boolean;
+  isAgentThinking?: boolean;
 }
 
 export function AdvisorPanel({
@@ -18,11 +23,24 @@ export function AdvisorPanel({
   handleChat,
   isListening,
   handleToggleListening,
-  onClose
+  onClose,
+  onDiagnose,
+  onGenerateDraft,
+  lastDiagnosis,
+  isDraftLoading,
+  isAgentThinking
 }: AdvisorPanelProps) {
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [chatHistory, isAgentThinking]);
+
   return (
     <aside className="advisor">
-      <div className="chat-scroll">
+      <div className="chat-scroll" ref={scrollRef}>
         {chatHistory.length === 0 ? (
           <>
             <div className="message">
@@ -68,9 +86,25 @@ export function AdvisorPanel({
           chatHistory.map((msg, i) => (
             <div key={i} className={`message ${msg.role === 'user' ? 'user' : ''}`}>
               {msg.role === 'agent' && <div className="spark">✦</div>}
-              <div className="bubble">{msg.text}</div>
+              {msg.role === 'agent' && msg.text === '__SECURITY_DENIED__' ? (
+                <div className="bubble security-denied">
+                  Request blocked by security layer. Rephrase and try again.
+                </div>
+              ) : (
+                <div className="bubble">{msg.text}</div>
+              )}
             </div>
           ))
+        )}
+        {isAgentThinking && (
+          <div className="message">
+            <div className="spark">✦</div>
+            <div className="thinking">
+              <div className="thinking-dot" />
+              <div className="thinking-dot" />
+              <div className="thinking-dot" />
+            </div>
+          </div>
         )}
       </div>
 
@@ -103,6 +137,33 @@ export function AdvisorPanel({
           <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{width: 6, height: 6, borderRadius: '50%', background: '#10b981', opacity: 0.8}}></div> Direct Routing</span>
           <span>gemini-1.5-pro</span>
         </div>
+
+        {(onDiagnose || onGenerateDraft) && (
+          <div className="advisor-toolbar">
+            {onDiagnose && (
+              <button
+                className="advisor-action"
+                onClick={onDiagnose}
+                disabled={isAgentThinking}
+                aria-label="Run diagnosis on current context"
+                title="Diagnose current workspace"
+              >
+                ⚡ Diagnose
+              </button>
+            )}
+            {onGenerateDraft && (
+              <button
+                className="advisor-action primary-action"
+                onClick={onGenerateDraft}
+                disabled={isAgentThinking || isDraftLoading || !lastDiagnosis}
+                aria-label="Generate draft report from last diagnosis"
+                title={!lastDiagnosis ? 'Run a diagnosis first' : 'Generate draft report'}
+              >
+                {isDraftLoading ? '⏳ Generating…' : '📄 Draft Report'}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </aside>
   );

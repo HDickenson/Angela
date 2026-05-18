@@ -19,6 +19,8 @@ import {
   RefreshCw,
   Maximize,
   Minimize,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 
 const SystemFooter = ({
@@ -156,6 +158,14 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [expandedCardIds, setExpandedCardIds] = useState<Set<string>>(new Set());
+  const toggleExpand = (id: string) => {
+    setExpandedCardIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -682,13 +692,17 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
             isFilterMismatch = item.category !== canvasFilterCategory;
           }
 
+          const isExpanded = expandedCardIds.has(item.id);
+
           const style = {
             position: "absolute",
             top: item.y,
             left: item.x,
             width: item.w,
-            height: item.h,
-            zIndex: isDragging ? 20 : (isSelected ? 5 : 1),
+            height: isExpanded ? 'auto' : item.h,
+            overflowY: isExpanded ? ('auto' as const) : undefined,
+            maxHeight: isExpanded ? '80vh' : undefined,
+            zIndex: isDragging ? 20 : (isExpanded ? 10 : (isSelected ? 5 : 1)),
             opacity: isFilterMismatch ? 0.2 : (isDragging ? 0.8 : 1),
             pointerEvents: isFilterMismatch ? "none" as const : "auto" as const,
             transition: isDragging ? "none" : "opacity 0.2s ease-in-out",
@@ -704,6 +718,26 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
           const pinClass = PinIcon === Pin ? "is-locked" : "is-open";
           const baseCardClass = item.type === 'timeline' ? 'timeline-card' : item.type;
           const cardClassName = `card ${baseCardClass} ${isSelected ? 'is-selected' : ''} ${isDragging ? 'is-dragging' : ''}`;
+
+          const ExpandBtn = (
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleExpand(item.id); }}
+              style={{
+                position: 'absolute', right: 38, top: 10, zIndex: 2,
+                background: 'transparent', border: 'none',
+                color: 'var(--muted)', cursor: 'pointer',
+                width: 24, height: 24,
+                display: 'grid', placeItems: 'center',
+                opacity: 0.45, transition: 'opacity 120ms ease, color 120ms ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.45')}
+              title={isExpanded ? "Collapse" : "Expand"}
+              aria-label={isExpanded ? "Collapse card" : "Expand card"}
+            >
+              {isExpanded ? <Minimize2 size={11} /> : <Maximize2 size={11} />}
+            </button>
+          );
 
           if (item.type === "overview") {
             const isDragging = draggingItemId === item.id || (draggingItemId && selectedIds.includes(draggingItemId) && isSelected);
@@ -726,6 +760,7 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                 >
                   <Pin size={14} />
                 </button>
+                {ExpandBtn}
                 <div className="card-title">Project Overview</div>
                 <div className="fileline">
                   <div className="file-icon">
@@ -818,6 +853,7 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                 >
                   <Pin size={14} />
                 </button>
+                {ExpandBtn}
                 <div className="card-title">Key Document</div>
                 <div className="fileline">
                   <div
@@ -908,6 +944,7 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                 >
                   <Pin size={14} />
                 </button>
+                {ExpandBtn}
                 <div className="card-title">Site Image</div>
                 <div className="image-thumb"></div>
                 <div className="row tiny muted">
@@ -955,6 +992,7 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                 >
                   <PinIcon size={14} />
                 </button>
+                {ExpandBtn}
                 <div className="card-title">Model Data</div>
                 <div className="fileline">
                   <div className="file-icon sheet">▦</div>
@@ -1073,6 +1111,7 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                 >
                   <Pin size={14} />
                 </button>
+                {ExpandBtn}
                 <div className="card-title">Decision Log</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "12px" }}>
                   {workspaceData.decisions.map((d: any) => (
@@ -1178,6 +1217,7 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                 >
                   <Pin size={14} />
                 </button>
+                {ExpandBtn}
                 <div
                   className="card-title"
                   style={{ display: "flex", alignItems: "center", gap: "6px" }}
@@ -1269,6 +1309,7 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                 >
                   <PinIcon size={14} />
                 </button>
+                {ExpandBtn}
                 <div className="card-title">Similar Projects</div>
                 <div
                   className="similar-item"
@@ -1355,6 +1396,7 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                 >
                   <Pin size={14} />
                 </button>
+                {ExpandBtn}
                 <div
                   className="card-title"
                   style={{ display: "flex", alignItems: "center", gap: "6px" }}
@@ -1406,6 +1448,7 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                 >
                   <PinIcon size={14} />
                 </button>
+                {ExpandBtn}
                 <div
                   className="card-title"
                   style={{ display: "flex", alignItems: "center", gap: "6px" }}
@@ -1477,6 +1520,7 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                 >
                   <PinIcon size={14} />
                 </button>
+                {ExpandBtn}
                 <div className="card-title">Notes</div>
                 <textarea
                   className="note-box"

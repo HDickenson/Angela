@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { HttpAgent } from '@ag-ui/client';
 import HomePage from './HomePage.tsx';
 import Workspace from './Workspace.tsx';
 import AdminIngestionArea from './AdminIngestionArea.tsx';
@@ -11,9 +12,20 @@ import AdminIngestionArea from './AdminIngestionArea.tsx';
 export default function App() {
   const [currentView, setCurrentView] = useState<'landing' | 'workspace' | 'admin'>('landing');
   const [activeWorkspaceId, setActiveWorkspaceId] = useState('harbour-tower');
+  const [token, setToken] = useState<string | null>(null);
   const [chatMessage, setChatMessage] = useState('');
-  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'agent', text: string}[]>([]);
+  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'agent', text: string, _id?: string}[]>([]);
   const [isListening, setIsListening] = useState(false);
+  const [lastDiagnosis, setLastDiagnosis] = useState<{ diagnosisId: string; hypothesis: string; confidence: number } | null>(null);
+  const [draftContent, setDraftContent] = useState<any | null>(null);
+  const [isDraftOpen, setIsDraftOpen] = useState(false);
+  const [isDraftLoading, setIsDraftLoading] = useState(false);
+  const [isAgentThinking, setIsAgentThinking] = useState(false);
+
+  useEffect(() => {
+    setLastDiagnosis(null);
+  }, [activeWorkspaceId]);
+
   const recognitionRef = useRef<any>(null);
   const textBeforeListenRef = useRef('');
 
@@ -75,27 +87,116 @@ export default function App() {
     }
   };
 
-  const handleChat = async () => {
+  const authHeaders = (): Record<string, string> => {
+    if (token) return { 'Authorization': `Bearer ${token}` };
+    return { 'x-demo-role': 'analyst' };
+  };
+
+  const handleDiagnose = async () => {
     if (!chatMessage.trim()) return;
-    const newMsg = { role: 'user' as const, text: chatMessage };
-    setChatHistory(prev => [...prev, newMsg]);
-    const currentInput = chatMessage;
+    const query = chatMessage;
     setChatMessage('');
+    setChatHistory(prev => [...prev, { role: 'user', text: `[Diagnose] ${query}` }]);
+    setIsAgentThinking(true);
 
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetch('/api/diagnose', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: currentInput, role: 'analyst', workspaceId: activeWorkspaceId })
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ context: query, workspaceId: activeWorkspaceId })
       });
       const data = await res.json();
-      if (res.status === 403) {
-        setChatHistory(prev => prev.slice(0, -1)); // Remove the last user message if it failed security
+      if (!res.ok) {
+        setChatHistory(prev => [...prev, { role: 'agent', text: `Diagnosis failed: ${data.error}` }]);
         return;
       }
-      setChatHistory(prev => [...prev, { role: 'agent', text: data.reply }]);
+      setLastDiagnosis({ diagnosisId: data.diagnosisId, hypothesis: data.hypothesis, confidence: data.confidence });
+      const summary = `**Diagnosis:** ${data.hypothesis}\n**Confidence:** ${Math.round(data.confidence * 100)}%\n**Evidence cited:** ${(data.evidence_map || []).join(', ')}\n\n*Click "Generate Draft Report" to create a full report.*`;
+      setChatHistory(prev => [...prev, { role: 'agent', text: summary }]);
+    } catch (e) {
+      console.error('Diagnose failed', e);
+    } finally {
+      setIsAgentThinking(false);
+    }
+  };
+
+  const handleGenerateDraft = async () => {
+    if (!lastDiagnosis) return;
+    setIsDraftLoading(true);
+    try {
+      const res = await fetch('/api/draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ diagnosisId: lastDiagnosis.diagnosisId, workspaceId: activeWorkspaceId })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`Draft generation failed: ${data.error}`);
+        return;
+      }
+      if (data.error === 'insufficient_evidence_for_draft') {
+        alert('Insufficient evidence to generate a draft. Add more evidence and run a diagnosis first.');
+        return;
+      }
+      setDraftContent(data);
+      setIsDraftOpen(true);
+    } catch (e) {
+      console.error('Draft failed', e);
+    } finally {
+      setIsDraftLoading(false);
+    }
+  };
+
+  const handleChat = async () => {
+    if (!chatMessage.trim()) return;
+    const userText = chatMessage;
+    setChatMessage('');
+    setChatHistory(prev => [...prev, { role: 'user' as const, text: userText }]);
+    setIsAgentThinking(true);
+
+    const agentMsgId = crypto.randomUUID();
+    setChatHistory(prev => [...prev, { role: 'agent' as const, text: '', _id: agentMsgId }]);
+
+    const agent = new HttpAgent({
+      url: '/api/chat',
+      headers: authHeaders(),
+      threadId: activeWorkspaceId,
+      initialMessages: [{ role: 'user' as const, id: crypto.randomUUID(), content: userText }],
+    });
+
+    let accumulated = '';
+
+    try {
+      await agent.runAgent(
+        { runId: agentMsgId, forwardedProps: { workspaceId: activeWorkspaceId } },
+        {
+          onEvent: ({ event }: { event: any }) => {
+            if (event.type === 'TEXT_MESSAGE_CONTENT') {
+              accumulated += event.delta ?? '';
+              setChatHistory(prev =>
+                prev.map(m => m._id === agentMsgId ? { ...m, text: accumulated } : m)
+              );
+            }
+            if (event.type === 'RUN_ERROR') {
+              const isSecurityBlock = event.message?.includes('Security violation');
+              setChatHistory(prev =>
+                prev.map(m =>
+                  m._id === agentMsgId
+                    ? { ...m, text: isSecurityBlock ? '__SECURITY_DENIED__' : `Error: ${event.message}` }
+                    : m
+                )
+              );
+            }
+          },
+        }
+      );
     } catch (e) {
       console.error('Chat failed', e);
+      setChatHistory(prev =>
+        prev.map(m => m._id === agentMsgId ? { ...m, text: 'Connection error. Please try again.' } : m)
+      );
+    } finally {
+      setIsAgentThinking(false);
     }
   };
 
@@ -111,9 +212,10 @@ export default function App() {
   }
 
   return (
-    <Workspace 
+    <Workspace
       activeWorkspaceId={activeWorkspaceId}
       setActiveWorkspaceId={setActiveWorkspaceId}
+      onTokenChange={setToken}
       chatMessage={chatMessage}
       setChatMessage={setChatMessage}
       chatHistory={chatHistory}
@@ -122,6 +224,14 @@ export default function App() {
       handleToggleListening={handleToggleListening}
       onExit={() => setCurrentView('landing')}
       currentRole="analyst"
+      handleDiagnose={handleDiagnose}
+      handleGenerateDraft={handleGenerateDraft}
+      lastDiagnosis={lastDiagnosis}
+      isDraftLoading={isDraftLoading}
+      isDraftOpen={isDraftOpen}
+      setIsDraftOpen={setIsDraftOpen}
+      draftContent={draftContent}
+      isAgentThinking={isAgentThinking}
     />
   );
 }

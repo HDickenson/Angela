@@ -2,9 +2,11 @@ import React from 'react';
 
 export interface ProjectHeaderProps {
   activeWorkspaceId: string;
+  activeView?: string;
+  setActiveView?: (view: string) => void;
 }
 
-export function ProjectHeader({ activeWorkspaceId }: ProjectHeaderProps) {
+export function ProjectHeader({ activeWorkspaceId, activeView = 'canvas', setActiveView }: ProjectHeaderProps) {
   const getWorkspaceName = () => {
     switch (activeWorkspaceId) {
       case 'harbour-tower': return 'Harbour Tower Extension';
@@ -27,10 +29,10 @@ export function ProjectHeader({ activeWorkspaceId }: ProjectHeaderProps) {
       </div>
       <div className="toolbar">
         <div className="tabs">
-          <div className="tab active">▦ Canvas</div>
-          <div className="tab">▥ Board</div>
-          <div className="tab">☷ Timeline</div>
-          <div className="tab">▤ Table</div>
+          <div className={`tab${activeView === 'canvas' ? ' active' : ''}`} onClick={() => setActiveView?.('canvas')}>▦ Canvas</div>
+          <div className={`tab${activeView === 'board' ? ' active' : ''}`} onClick={() => setActiveView?.('board')}>▥ Board</div>
+          <div className={`tab${activeView === 'timeline' ? ' active' : ''}`} onClick={() => setActiveView?.('timeline')}>☷ Timeline</div>
+          <div className={`tab${activeView === 'table' ? ' active' : ''}`} onClick={() => setActiveView?.('table')}>▤ Table</div>
         </div>
         <div className="zoom-tools">
           <div className="pill">Group: <strong>None</strong>⌄</div>

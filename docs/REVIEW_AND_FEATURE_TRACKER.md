@@ -35,11 +35,15 @@ The system currently simulates a Role-Based Access Control (RBAC) model mapping 
 
 ### 3.3 Diagnosis & Drafting (P0)
 * **User Story**: As a Reviewer, I want the AI to formulate an operational hypothesis and provide a structured markdown report, BUT it must explicitly cite the evidence IDs used to ensure truthfulness.
-* **Implementation Status**: **✅ Done.** The system calls `/api/diagnose` mapped to a stricter `gemini-1.5-pro` model, outputting fixed JSON. The frontend UI generates an "Evidence Detail" drill-down Modal allowing humans to verify every token and assess AI Confidence Scores natively.
+* **Implementation Status: ✅ Done (Full Pipeline).** The `/api/diagnose` endpoint generates structured JSON with evidence citations and stores each diagnosis with a UUID. The new `/api/draft` endpoint accepts a `diagnosisId` and generates a structured report via `DRAFT_SYSTEM_PROMPT`, with all claims traceable to evidence IDs. The frontend surfaces this via a 'Generate Draft Report' button in `AdvisorPanel` and displays the output in `DraftModal.tsx`.
 
 ### 3.4 Trust & Security "Lobster Trap" (P0)
 * **User Story**: As a System Architect, I want a deterministic security layer intercepting all inbound inference requests to block "Dirty Dozen" prompt injections before they reach the GenAI API limit.
 * **Implementation Status**: **✅ Done.** Fully functional heuristic interceptor. Real-time blocking of directives ("override previous rules"), SQL injections ("DROP TABLE"), and credential fishing. Evaluated via a dedicated tab ("Lobster Trap") and automated via `Vitest`.
+
+### 3.6 Draft Generator (P0)
+* **User Story**: As an Analyst, I want to generate a client-ready structured report from a diagnosis, with every claim traceable to a specific evidence ID.
+* **Implementation Status**: **✅ Done.** `POST /api/draft` in `server.ts` accepts a `diagnosisId`, loads the stored diagnosis from memory (or Firestore), and generates a structured report via `DRAFT_SYSTEM_PROMPT` with Gemini Flash. Output includes `title`, `executive_summary`, `findings` (each with `evidence_id` and `confidence`), `recommendations`, and `missing_evidence`. Returns 422 if output is malformed.
 
 ### 3.5 Data Ingestion & Research (P1)
 * **User Story**: As a Triage Analyst, I want to quickly simulate SEC financial advisories alongside internal Loghub telemetry to understand the OPEX impact of system outages.
@@ -55,6 +59,6 @@ The system currently simulates a Role-Based Access Control (RBAC) model mapping 
 3. **Structured Outputs First**: `INTAKE_SYSTEM_PROMPT` and `DIAGNOSIS_SYSTEM_PROMPT` enforce machine-readable interfaces separating backend logic from generative flow.
 
 ### **Areas for Future Work (Stretch Goals / Backlog)**
-1. **Persistent State (Database Integration)**: Evidence is currently mocked in memory (`evidenceStore`). Moving to Firebase Firestore with proper Security Rules mapping to RBAC tokens is required for production.
+1. **Persistent State (Database Integration)**: **Partially Done** — Audit logs and diagnoses now persist to Firestore when `FIREBASE_SERVICE_ACCOUNT_KEY` is configured. Remaining: migrate evidence store from hardcoded `internal_databases.ts` constants to Firestore for multi-session accumulation.
 2. **Voice Interaction Modality**: The Constitution prescribes "Voice Second". The frontend is purely "Text First" chat today; WebRTC or Live API configurations are needed for the voice stretch goal.
 3. **Formal OAuth Identities**: The current roles use `import.meta.env` and hardcoded toggle states. Full `signInWithOauth` integration mapped to enterprise identity providers (OIDC/SAML) is the logical next component.
