@@ -22,10 +22,10 @@ export const initAuth = (
 ) => {
   return onAuthStateChanged(auth, async (user: User | null) => {
     if (user) {
-      if (cachedAccessToken) {
-        if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
-      } else if (!isSigningIn) {
-        cachedAccessToken = null;
+      try {
+        const idToken = await user.getIdToken();
+        if (onAuthSuccess) onAuthSuccess(user, idToken);
+      } catch {
         if (onAuthFailure) onAuthFailure();
       }
     } else {

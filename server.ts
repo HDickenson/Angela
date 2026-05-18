@@ -261,9 +261,14 @@ export async function createApp() {
 
       const responseText = result.text || "";
       const cleanedJson = responseText.replace(/```json|```/g, "").trim();
-      const intakeData = JSON.parse(cleanedJson);
+      let intakeData: any;
+      try {
+        intakeData = JSON.parse(cleanedJson);
+      } catch {
+        return res.status(422).json({ error: "classification_parse_failed", raw: responseText.slice(0, 200) });
+      }
 
-      const newId = `EV-${Math.floor(Math.random() * 900) + 100}`;
+      const newId = `EV-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
       const newEntry = {
         id: newId,
         content: payload,
@@ -359,7 +364,12 @@ export async function createApp() {
 
       const responseText = result.text || "";
       const cleanedJson = responseText.replace(/```json|```/g, "").trim();
-      const diagnosis = JSON.parse(cleanedJson);
+      let diagnosis: any;
+      try {
+        diagnosis = JSON.parse(cleanedJson);
+      } catch {
+        return res.status(422).json({ error: "diagnosis_parse_failed", raw: responseText.slice(0, 200) });
+      }
 
       const diagnosisId = crypto.randomUUID();
       diagnosesStore.set(diagnosisId, {
@@ -420,16 +430,10 @@ export async function createApp() {
         return res.status(400).json({ error: "diagnosisId is required" });
       }
 
-      // Look up diagnosis from in-memory store first
-      let diagnosis = diagnosesStore.get(diagnosisId);
+      let diagnosis: any = null;
 
-      // Workspace ownership check
-      if (diagnosis && diagnosis.workspaceId !== workspaceId) {
-        return res.status(403).json({ error: "diagnosis does not belong to this workspace" });
-      }
-
-      // Fall back to Firestore if not in memory
-      if (!diagnosis && adminDb) {
+      // Try Firestore first (survives cold starts)
+      if (adminDb) {
         try {
           const snap = await adminDb
             .collection("workspaces")
@@ -443,6 +447,16 @@ export async function createApp() {
         } catch (e: any) {
           console.warn("Firestore diagnosis lookup failed:", e.message);
         }
+      }
+
+      // Fall back to in-memory store
+      if (!diagnosis) {
+        diagnosis = diagnosesStore.get(diagnosisId);
+      }
+
+      // Workspace ownership check
+      if (diagnosis && diagnosis.workspaceId !== workspaceId) {
+        return res.status(403).json({ error: "diagnosis does not belong to this workspace" });
       }
 
       if (!diagnosis) {
@@ -524,6 +538,24 @@ export async function createApp() {
     const { threadId, runId, messages, forwardedProps } = req.body;
     const workspaceId: string = forwardedProps?.workspaceId ?? "harbour-tower";
     const ws = workspaces[workspaceId as keyof typeof workspaces];
+    let chatEvidence = ws ? [...ws.evidenceStore] : [];
+    if (adminDb) {
+      try {
+        const snap = await adminDb
+          .collection("workspaces")
+          .doc(workspaceId)
+          .collection("evidence")
+          .get();
+        const persisted = snap.docs.map((d: any) => d.data());
+        const existingIds = new Set(chatEvidence.map((e: any) => e.id));
+        chatEvidence = [...chatEvidence, ...persisted.filter((e: any) => !existingIds.has(e.id))];
+      } catch (e: any) {
+        console.warn("Chat evidence Firestore read failed:", e.message);
+      }
+    }
+    const visibleChatEvidence = chatEvidence
+      .filter((e: any) => user.allowedZones.includes(e.zone))
+      .slice(0, 20);
     const message: string | undefined = Array.isArray(messages)
       ? [...messages].reverse().find((m: any) => m.role === "user")?.content
       : undefined;
@@ -566,11 +598,7 @@ export async function createApp() {
             role: "user",
             parts: [
               { text: CHAT_SYSTEM_PROMPT },
-              { text: `Workspace: ${ws?.name ?? workspaceId}\nProject evidence: ${JSON.stringify(
-                (ws?.evidenceStore ?? [])
-                  .filter((e: any) => user.allowedZones.includes(e.zone))
-                  .slice(0, 20)
-              )}\n\nUser question: ${message}` },
+              { text: `Workspace: ${ws?.name ?? workspaceId}\nProject evidence: ${JSON.stringify(visibleChatEvidence)}\n\nUser question: ${message}` },
             ],
           },
         ],

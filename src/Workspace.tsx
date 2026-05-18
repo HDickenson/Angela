@@ -90,7 +90,8 @@ export default function Workspace({
     try {
       const result = await googleSignIn();
       if (result) {
-        setToken(result.accessToken);
+        const idToken = await result.user.getIdToken();
+        setToken(idToken);
         setUser(result.user);
         setNeedsAuth(false);
       }

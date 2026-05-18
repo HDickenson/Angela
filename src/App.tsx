@@ -115,6 +115,7 @@ export default function App() {
       setChatHistory(prev => [...prev, { role: 'agent', text: summary }]);
     } catch (e) {
       console.error('Diagnose failed', e);
+      setChatHistory(prev => [...prev, { role: 'agent' as const, text: 'Diagnosis failed. Please try again.' }]);
     } finally {
       setIsAgentThinking(false);
     }
@@ -142,6 +143,7 @@ export default function App() {
       setIsDraftOpen(true);
     } catch (e) {
       console.error('Draft failed', e);
+      alert('Draft generation failed. Please try again.');
     } finally {
       setIsDraftLoading(false);
     }
