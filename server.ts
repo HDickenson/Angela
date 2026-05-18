@@ -275,6 +275,16 @@ export async function createApp() {
 
       if (ws) ws.evidenceStore.push(newEntry);
 
+      if (adminDb) {
+        await adminDb
+          .collection("workspaces")
+          .doc(workspaceId)
+          .collection("evidence")
+          .doc(newId)
+          .set(newEntry)
+          .catch((e: any) => console.warn("Evidence Firestore write failed:", e.message));
+      }
+
       await writeAuditLog({
         action: "Ingestion",
         actor: user.uid,
@@ -304,7 +314,21 @@ export async function createApp() {
     try {
       const { context, workspaceId = "harbour-tower" } = req.body;
       const ws = workspaces[workspaceId as keyof typeof workspaces];
-      const evidenceStore = ws ? ws.evidenceStore : [];
+      let evidenceStore = ws ? [...ws.evidenceStore] : [];
+      if (adminDb) {
+        try {
+          const snap = await adminDb
+            .collection("workspaces")
+            .doc(workspaceId)
+            .collection("evidence")
+            .get();
+          const persisted = snap.docs.map((d: any) => d.data());
+          const existingIds = new Set(evidenceStore.map((e: any) => e.id));
+          evidenceStore = [...evidenceStore, ...persisted.filter((e: any) => !existingIds.has(e.id))];
+        } catch (e: any) {
+          console.warn("Evidence Firestore read failed:", e.message);
+        }
+      }
 
       // Filter evidence by user's allowed zones (derived from auth, not body)
       const visibleEvidence = evidenceStore.filter((e: any) =>
@@ -344,9 +368,9 @@ export async function createApp() {
         createdAt: new Date().toISOString(),
       });
 
-      // Optionally persist to Firestore (non-blocking)
+      // Optionally persist to Firestore
       if (adminDb) {
-        adminDb
+        await adminDb
           .collection("workspaces")
           .doc(workspaceId)
           .collection("diagnoses")
@@ -499,6 +523,7 @@ export async function createApp() {
     const requestId = crypto.randomUUID();
     const { threadId, runId, messages, forwardedProps } = req.body;
     const workspaceId: string = forwardedProps?.workspaceId ?? "harbour-tower";
+    const ws = workspaces[workspaceId as keyof typeof workspaces];
     const message: string | undefined = Array.isArray(messages)
       ? [...messages].reverse().find((m: any) => m.role === "user")?.content
       : undefined;
@@ -541,7 +566,11 @@ export async function createApp() {
             role: "user",
             parts: [
               { text: CHAT_SYSTEM_PROMPT },
-              { text: message },
+              { text: `Workspace: ${ws?.name ?? workspaceId}\nProject evidence: ${JSON.stringify(
+                (ws?.evidenceStore ?? [])
+                  .filter((e: any) => user.allowedZones.includes(e.zone))
+                  .slice(0, 20)
+              )}\n\nUser question: ${message}` },
             ],
           },
         ],

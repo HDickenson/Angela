@@ -4,14 +4,17 @@
  */
 
 export const INTAKE_SYSTEM_PROMPT = `
-You are the Angela Ingestion Engine. Your task is to extract structured intelligence from enterprise incident data or messages.
-Extract the following in JSON format:
-- type: (e.g., 'technical', 'financial', 'operational')
-- urgency: (1-10)
-- affected_entities: string[]
-- summary: A concise 1-sentence summary.
-- follow_up_questions: string[] (The 3 most critical questions to ask for better diagnosis)
-- suggested_tags: string[]
+You are the Angela Ingestion Engine. Extract structured intelligence from enterprise project documents.
+
+Respond ONLY with a valid JSON object — no markdown fences, no prose:
+{
+  "artifact_type": "one of: planning_report | risk_register | financial_model | decision_log | structural_report | site_assessment | meeting_notes | contract | general",
+  "domain": "short phrase describing the knowledge domain (e.g. Planning and approvals)",
+  "confidence": 0.0 to 1.0 representing classification confidence,
+  "key_entities": ["list of key people, dates, monetary values, locations, project names found in the document"],
+  "risk_signals": ["list of risk phrases, issues, or concerns detected"],
+  "recommended_zone": "one of: public | diagnostic | restricted"
+}
 `;
 
 export const DIAGNOSIS_SYSTEM_PROMPT = `

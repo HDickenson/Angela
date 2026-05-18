@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ITEMS, INITIAL_CONNECTORS, getPoint, getPath } from "./canvasUtils";
+import { INITIAL_CONNECTORS, getPoint, getPath } from "./canvasUtils";
 import {
   Pin,
   PinOff,
@@ -186,7 +186,9 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
   };
 
   useEffect(() => {
-    fetch(`/api/workspace/${activeWorkspaceId}`)
+    fetch(`/api/workspace/${activeWorkspaceId}`, {
+      headers: { 'x-demo-role': 'analyst' },
+    })
       .then((res) => res.json())
       .then((data) => {
         setWorkspaceData(data);
