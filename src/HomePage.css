@@ -20,8 +20,8 @@
   --amber: #e3a87b;
   --rose: #d77d86;
   --shadow: 0 18px 70px rgba(0, 0, 0, 0.42);
-  --radius: 18px;
-  --radius-sm: 12px;
+  --radius: 2px;
+  --radius-sm: 2px;
   --max: 1180px;
 
   background:
@@ -136,7 +136,7 @@
 
 .action-button {
   height: 40px;
-  border-radius: 11px;
+  border-radius: var(--radius);
   border: 1px solid var(--line-strong);
   background: rgba(255,255,255,0.032);
   color: #e8edf6;
@@ -513,7 +513,7 @@
 .feature-card {
   min-height: 280px;
   border: 1px solid var(--line-strong);
-  border-radius: 22px;
+  border-radius: var(--radius);
   background: linear-gradient(180deg, rgba(20,36,52,.76), rgba(9,20,32,.88));
   padding: 24px;
   box-shadow: 0 14px 44px rgba(0,0,0,.24);
@@ -680,7 +680,7 @@
 
 .trust-card {
   border: 1px solid var(--line-strong);
-  border-radius: 20px;
+  border-radius: var(--radius);
   padding: 22px;
   background: rgba(255,255,255,.026);
   min-height: 172px;
@@ -701,7 +701,7 @@
 
 .cta-panel {
   border: 1px solid rgba(196,154,85,.24);
-  border-radius: 32px;
+  border-radius: var(--radius);
   background:
     radial-gradient(circle at 70% 20%, rgba(117,82,209,.18), transparent 30%),
     linear-gradient(180deg, rgba(20,36,52,.72), rgba(5,13,23,.96));
@@ -804,6 +804,6 @@
   .hero-stage { min-height: 560px; border-radius: 22px; }
   .mock-body { transform: scale(.76); transform-origin: top left; width: 760px; }
   .advisor-mini { right: 22px; top: 382px; }
-  .cta-panel { padding: 32px 24px; border-radius: 24px; }
+  .cta-panel { padding: 32px 24px; border-radius: var(--radius); }
   .footer-inner { flex-direction: column; }
 }

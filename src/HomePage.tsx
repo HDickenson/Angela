@@ -24,7 +24,7 @@ export default function HomePage({ onEnter, onAdminEnter }: HomePageProps) {
               <a href="#trust">Trust</a>
             </div>
             <div className="nav-actions">
-              <button className="action-button" onClick={onAdminEnter}><Lock size={14} style={{display: 'inline-block', marginRight: '6px', verticalAlign: 'text-bottom'}} /> Admins</button>
+              <button className="action-button" onClick={onAdminEnter}><Lock size={14} style={{display: 'inline-block', marginRight: '6px', verticalAlign: 'text-bottom'}} /> How It Works</button>
               <button className="action-button primary" onClick={onEnter}>Enter Advisor</button>
             </div>
           </div>
@@ -272,7 +272,6 @@ export default function HomePage({ onEnter, onAdminEnter }: HomePageProps) {
             </div>
             <div className="hero-actions" style={{ margin: 0 }}>
               <button className="action-button primary" onClick={onEnter}>Enter Advisor Workspace</button>
-              <button className="action-button" onClick={onEnter}>Explore Ingest &amp; Manage</button>
             </div>
           </div>
         </section>

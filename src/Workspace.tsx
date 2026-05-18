@@ -133,23 +133,23 @@ export default function Workspace({
         </div>
         <div className="top-actions">
           <div className="search">⌕ <span>Search</span><span style={{marginLeft: "auto"}}>≡</span></div>
-          {needsAuth ? (
-            <button 
-              className="gsi-material-button" 
-              onClick={handleLogin} 
+          {!import.meta.env.VITE_DEMO_MODE && (needsAuth ? (
+            <button
+              className="gsi-material-button"
+              onClick={handleLogin}
               disabled={isLoggingIn}
               style={{ padding: '0 8px', height: '32px', display: 'flex', alignItems: 'center', background: 'var(--card)', border: '1px solid var(--line)', color: 'var(--text)', cursor: 'pointer', borderRadius: 'var(--radius)' }}
             >
               Sign in with Google
             </button>
           ) : (
-            <button 
+            <button
               onClick={handleLogout}
               style={{ padding: '0 12px', height: '32px', display: 'flex', alignItems: 'center', background: 'transparent', border: '1px solid var(--line)', color: 'var(--text)', cursor: 'pointer', borderRadius: 'var(--radius)', fontSize: '12px' }}
             >
               Logout Google
             </button>
-          )}
+          ))}
           <button 
             onClick={() => setIsAdvisorOpen(!isAdvisorOpen)}
             style={{ display: 'grid', placeItems: 'center', width: '32px', height: '32px', borderRadius: 'var(--radius)', background: isAdvisorOpen ? 'rgba(255,255,255,0.08)' : 'transparent', color: isAdvisorOpen ? 'var(--text)' : 'var(--muted)', cursor: 'pointer', border: 'none' }}
