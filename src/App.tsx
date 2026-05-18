@@ -14,9 +14,17 @@ export default function App() {
   const [activeWorkspaceId, setActiveWorkspaceId] = useState('harbour-tower');
   const [token, setToken] = useState<string | null>(null);
   const [chatMessage, setChatMessage] = useState('');
-  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'agent', text: string, _id?: string}[]>([]);
+  const [chatHistories, setChatHistories] = useState<Record<string, {role: 'user' | 'agent', text: string, _id?: string}[]>>({});
+  const chatHistory = chatHistories[activeWorkspaceId] ?? [];
+  const setChatHistory = (updater: ((prev: {role: 'user' | 'agent', text: string, _id?: string}[]) => {role: 'user' | 'agent', text: string, _id?: string}[]) | {role: 'user' | 'agent', text: string, _id?: string}[], wsId = activeWorkspaceId) => {
+    setChatHistories(prev => ({
+      ...prev,
+      [wsId]: typeof updater === 'function' ? updater(prev[wsId] ?? []) : updater,
+    }));
+  };
   const [isListening, setIsListening] = useState(false);
   const [isAgentThinking, setIsAgentThinking] = useState(false);
+  const [canvasRefreshKey, setCanvasRefreshKey] = useState(0);
 
   const recognitionRef = useRef<any>(null);
   const textBeforeListenRef = useRef('');
@@ -87,17 +95,18 @@ export default function App() {
   const handleChat = async () => {
     if (!chatMessage.trim()) return;
     const userText = chatMessage;
+    const wsId = activeWorkspaceId;
     setChatMessage('');
-    setChatHistory(prev => [...prev, { role: 'user' as const, text: userText }]);
+    setChatHistory(prev => [...prev, { role: 'user' as const, text: userText }], wsId);
     setIsAgentThinking(true);
 
     const agentMsgId = crypto.randomUUID();
-    setChatHistory(prev => [...prev, { role: 'agent' as const, text: '', _id: agentMsgId }]);
+    setChatHistory(prev => [...prev, { role: 'agent' as const, text: '', _id: agentMsgId }], wsId);
 
     const agent = new HttpAgent({
       url: '/api/chat',
       headers: authHeaders(),
-      threadId: activeWorkspaceId,
+      threadId: wsId,
       initialMessages: [{ role: 'user' as const, id: crypto.randomUUID(), content: userText }],
     });
 
@@ -105,14 +114,14 @@ export default function App() {
 
     try {
       await agent.runAgent(
-        { runId: agentMsgId, forwardedProps: { workspaceId: activeWorkspaceId } },
+        { runId: agentMsgId, forwardedProps: { workspaceId: wsId } },
         {
           onEvent: ({ event }: { event: any }) => {
             if (event.type === 'TEXT_MESSAGE_CONTENT') {
               accumulated += event.delta ?? '';
               setChatHistory(prev =>
                 prev.map(m => m._id === agentMsgId ? { ...m, text: accumulated } : m)
-              );
+              , wsId);
             }
             if (event.type === 'RUN_ERROR') {
               const isSecurityBlock = event.message?.includes('Security violation');
@@ -122,7 +131,7 @@ export default function App() {
                     ? { ...m, text: isSecurityBlock ? '__SECURITY_DENIED__' : `Error: ${event.message}` }
                     : m
                 )
-              );
+              , wsId);
             }
           },
         }
@@ -131,14 +140,19 @@ export default function App() {
       console.error('Chat failed', e);
       setChatHistory(prev =>
         prev.map(m => m._id === agentMsgId ? { ...m, text: 'Connection error. Please try again.' } : m)
-      );
+      , wsId);
     } finally {
       setIsAgentThinking(false);
     }
   };
 
   if (currentView === 'admin') {
-    return <AdminIngestionArea onExit={() => setCurrentView('landing')} />;
+    return (
+      <AdminIngestionArea
+        onExit={() => setCurrentView('landing')}
+        onIngestComplete={() => setCanvasRefreshKey(k => k + 1)}
+      />
+    );
   }
 
   if (currentView === 'landing') {
@@ -162,6 +176,7 @@ export default function App() {
       onExit={() => setCurrentView('landing')}
       currentRole="analyst"
       isAgentThinking={isAgentThinking}
+      canvasRefreshKey={canvasRefreshKey}
     />
   );
 }

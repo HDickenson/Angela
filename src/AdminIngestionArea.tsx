@@ -3,6 +3,7 @@ import './AdminIngestionArea.css';
 
 interface AdminIngestionAreaProps {
   onExit: () => void;
+  onIngestComplete?: () => void;
 }
 
 const DEMO_PAYLOAD = `Harbour Tower Extension — Planning Approval Report (Aug 2024)
@@ -21,7 +22,7 @@ type IngestResult = {
   trace_id?: string;
 };
 
-export default function AdminIngestionArea({ onExit }: AdminIngestionAreaProps) {
+export default function AdminIngestionArea({ onExit, onIngestComplete }: AdminIngestionAreaProps) {
   const [demoStep, setDemoStep] = useState<number>(0);
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<IngestResult | null>(null);
@@ -71,6 +72,7 @@ export default function AdminIngestionArea({ onExit }: AdminIngestionAreaProps) 
       setDemoStep(6);
 
       setResult({ ...data.data, trace_id: data.trace_id });
+      onIngestComplete?.();
     } catch (e) {
       setError('Network error — check the server is running');
       setDemoStep(0);

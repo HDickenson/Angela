@@ -22,6 +22,7 @@ export interface WorkspaceProps {
   onExit: () => void;
   currentRole: string;
   isAgentThinking?: boolean;
+  canvasRefreshKey?: number;
 }
 
 export default function Workspace({
@@ -36,7 +37,8 @@ export default function Workspace({
   handleToggleListening,
   onExit,
   currentRole,
-  isAgentThinking
+  isAgentThinking,
+  canvasRefreshKey,
 }: WorkspaceProps) {
   const [activeTab, setActiveTab] = useState('projects');
   const [activeProjectView, setActiveProjectView] = useState('canvas');
@@ -143,7 +145,7 @@ export default function Workspace({
               setActiveView={setActiveProjectView}
             />
             {activeProjectView === 'canvas' ? (
-              <CanvasArea activeWorkspaceId={activeWorkspaceId} />
+              <CanvasArea activeWorkspaceId={activeWorkspaceId} refreshKey={canvasRefreshKey} token={token} />
             ) : (
               <PlaceholderTab tabName={activeProjectView} />
             )}

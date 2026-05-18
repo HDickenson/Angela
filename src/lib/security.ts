@@ -40,10 +40,10 @@ export const SECURITY_PATTERNS = [
 
   // 4. IDENTITY_OVERRIDE
   // Matches: "forget your identity/rules", "become a hacker", "act as [anything] hacker/admin",
-  // "pretend you are"
+  // "act as admin", "pretend you are"
   {
     id: "IDENTITY_OVERRIDE",
-    pattern: /forget your (identity|rules)|become a hacker|act as \S+\s+(hacker|admin)|pretend you are/,
+    pattern: /forget your (identity|rules)|become a hacker|act as (\S+\s+)?(hacker|admin)|pretend you are/,
     description: "Detected attempt to override assistant identity or role."
   },
 
@@ -66,7 +66,7 @@ export const SECURITY_PATTERNS = [
   // 7. BYPASS_DIRECTIVE
   {
     id: "BYPASS_DIRECTIVE",
-    pattern: /bypass\s+(security|check|filter|access)|skip\s+(security|auth)/,
+    pattern: /bypass\s+(security|check|filter|access)|skip\s+(security|auth(entication)?)/,
     description: "Detected attempt to bypass security controls."
   },
 

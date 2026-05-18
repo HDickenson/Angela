@@ -127,9 +127,11 @@ const SystemFooter = ({
 
 export interface CanvasAreaProps {
   activeWorkspaceId: string;
+  refreshKey?: number;
+  token?: string | null;
 }
 
-export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
+export function CanvasArea({ activeWorkspaceId, refreshKey = 0, token }: CanvasAreaProps) {
   const [hoveredConnector, setHoveredConnector] = useState<string | null>(null);
   const [evidenceModalTargetId, setEvidenceModalTargetId] = useState<string | null>(null);
   const [evidenceSearchQuery, setEvidenceSearchQuery] = useState("");
@@ -186,18 +188,21 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
   };
 
   useEffect(() => {
-    fetch(`/api/workspace/${activeWorkspaceId}`, {
-      headers: { 'x-demo-role': 'analyst' },
-    })
+    let cancelled = false;
+    const headers: Record<string, string> = token
+      ? { Authorization: `Bearer ${token}` }
+      : { 'x-demo-role': 'analyst' };
+    fetch(`/api/workspace/${activeWorkspaceId}`, { headers })
       .then((res) => res.json())
       .then((data) => {
-        setWorkspaceData(data);
-        if (data?.canvas?.items) {
-          setLocalItems(data.canvas.items);
+        if (!cancelled) {
+          setWorkspaceData(data);
+          if (data?.canvas?.items) setLocalItems(data.canvas.items);
         }
       })
-      .catch((err) => console.error(err));
-  }, [activeWorkspaceId]);
+      .catch((err) => { if (!cancelled) console.error(err); });
+    return () => { cancelled = true; };
+  }, [activeWorkspaceId, refreshKey, token]);
 
   // Spacebar tracking
   useEffect(() => {
@@ -779,45 +784,34 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                   </div>
                 </div>
                 <div className="divider"></div>
-                {activeWorkspaceId === "harbour-tower" ? (
-                  <div className="stack tiny">
+                <div className="stack tiny">
+                  {workspaceData?.meta?.purpose && (
                     <div>
                       <span className="muted">Purpose</span>
                       <br />
-                      <span className="strong">
-                        Additional 14 floors / mixed use
-                      </span>
+                      <span className="strong">{workspaceData.meta.purpose}</span>
                     </div>
+                  )}
+                  {workspaceData?.meta?.value && (
                     <div>
-                      <span className="muted">Value</span>
+                      <span className="muted">Exposure / Value</span>
                       <br />
-                      <span className="strong">$38.6M estimated uplift</span>
+                      <span className="strong">{workspaceData.meta.value}</span>
                     </div>
-                    <div className="row muted">
-                      <span>Updated 2h ago</span>
-                      <span
-                        className="avatar"
-                        style={{
-                          width: "24px",
-                          height: "24px",
-                          fontSize: "10px",
-                        }}
-                      >
-                        AH
-                      </span>
+                  )}
+                  {workspaceData?.meta?.summary && (
+                    <div className="muted" style={{ fontSize: '10px', lineHeight: 1.4, marginTop: 2 }}>
+                      {workspaceData.meta.summary}
                     </div>
-                  </div>
-                ) : (
-                  <div className="stack tiny">
+                  )}
+                  {!workspaceData?.meta && (
                     <div>
-                      <span className="muted">Records loaded</span>
+                      <span className="muted">Evidence loaded</span>
                       <br />
-                      <span className="strong">
-                        {workspaceData?.documents?.length || 0} Evidences
-                      </span>
+                      <span className="strong">{workspaceData?.documents?.length || 0} sources</span>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
                 <SystemFooter
                   system="Salesforce CRM"
                   status="synced"
@@ -859,13 +853,13 @@ export function CanvasArea({ activeWorkspaceId }: CanvasAreaProps) {
                 <div className="card-title">Key Document</div>
                 <div className="fileline">
                   <div
-                    className={`file-icon ${doc.fileType === "PDF" ? "pdf" : ""}`}
+                    className={`file-icon ${doc.fileType === "PDF" ? "pdf" : doc.fileType === "XLSX" || doc.fileType === "CSV" ? "sheet" : ""}`}
                   >
                     <FileText size={16} />
                   </div>
                   <div style={{ flex: 1 }}>
                     <div className="strong small">
-                      {doc.fileName || "Document"}
+                      {doc.fileName || doc.id || "Document"}
                     </div>
                     {item.category && (
                       <div className="tiny" style={{

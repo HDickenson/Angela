@@ -67,12 +67,12 @@ interface UserContext {
 // ─── resolveUser ──────────────────────────────────────────────────────────────
 
 async function resolveUser(req: express.Request): Promise<UserContext | null> {
-  // Trust x-demo-role when DEMO_MODE is set OR Firebase is not configured (local dev)
-  if (process.env.DEMO_MODE === "true" || !adminAuth) {
+  if (process.env.DEMO_MODE === "true") {
     const demoRole = ((req.headers["x-demo-role"] as string) || "analyst").toLowerCase();
     const role = ROLE_ZONES[demoRole] ? demoRole : "analyst";
     return { uid: "demo-user", role, allowedZones: ROLE_ZONES[role] };
   }
+  if (!adminAuth) return null;
 
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) return null;
@@ -317,7 +317,8 @@ async function llmGenerate(systemPrompt: string, userPrompt: string): Promise<st
   if (genAI) {
     const result = await genAI.models.generateContent({
       model: GEMINI_FLASH,
-      contents: [{ role: "user", parts: [{ text: systemPrompt }, { text: userPrompt }] }],
+      config: { systemInstruction: systemPrompt },
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
     });
     return result.text ?? "";
   }
@@ -345,7 +346,8 @@ async function* llmStream(systemPrompt: string, userPrompt: string): AsyncGenera
   if (genAI) {
     const stream = await genAI.models.generateContentStream({
       model: GEMINI_FLASH,
-      contents: [{ role: "user", parts: [{ text: systemPrompt }, { text: userPrompt }] }],
+      config: { systemInstruction: systemPrompt },
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
     });
     for await (const chunk of stream) {
       const delta = chunk.text ?? "";
@@ -391,19 +393,32 @@ export async function createApp() {
 
   // GET /api/health — no auth
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", app: "Angela" });
+    res.json({
+      status: "ok",
+      app: "Angela",
+      model: genAI ? GEMINI_FLASH : OLLAMA_MODEL,
+    });
   });
 
   // GET /api/workspace/:id
   app.get("/api/workspace/:id", requireAuth(), (req, res) => {
     const ws = workspaces[req.params.id as keyof typeof workspaces];
     if (!ws) return res.status(404).json({ error: "Workspace not found" });
-    res.json({ ...ws.data, name: ws.name });
+    const user = (req as any).user as UserContext;
+    const data = {
+      ...ws.data,
+      name: ws.name,
+      documents: ws.data.documents?.filter((d: any) => !d.zone || user.allowedZones.includes(d.zone)),
+    };
+    res.json(data);
   });
 
   // POST /api/ingest
   app.post("/api/ingest", requireAuth(), rateLimit(), async (req, res) => {
     const user = (req as any).user as UserContext;
+    if (user.role !== "admin") {
+      return res.status(403).json({ error: "insufficient_clearance" });
+    }
     const requestId = crypto.randomUUID();
 
     try {
@@ -674,6 +689,16 @@ export async function createApp() {
         if (!draft.findings || !draft.executive_summary) {
           return res.status(422).json({ error: "draft_generation_failed", raw: responseText });
         }
+        if (diagnosis.evidence_map) {
+          const validIds = new Set(Object.keys(diagnosis.evidence_map));
+          draft.findings = draft.findings.map((f: any) => {
+            if (f.evidence_id && !validIds.has(f.evidence_id)) {
+              const { evidence_id, ...rest } = f;
+              return rest;
+            }
+            return f;
+          });
+        }
       }
 
       await writeAuditLog({
@@ -807,8 +832,16 @@ export async function createApp() {
         evidence_ids: [],
         requestId,
       });
-    } catch (error) {
-      emit({ type: "RUN_ERROR", threadId, runId, message: "Chat failed." });
+    } catch (error: any) {
+      const isDown = error?.cause?.code === 'ECONNREFUSED' || error?.message?.includes('ECONNREFUSED');
+      emit({
+        type: "RUN_ERROR",
+        threadId,
+        runId,
+        message: isDown
+          ? "AI service is unreachable. Check that Ollama is running, then try again."
+          : "Chat failed. Please try again.",
+      });
     }
 
     res.end();

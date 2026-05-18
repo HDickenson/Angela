@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mic } from 'lucide-react';
 
 export interface AdvisorPanelProps {
@@ -10,6 +10,7 @@ export interface AdvisorPanelProps {
   handleToggleListening: () => void;
   className?: string;
   isAgentThinking?: boolean;
+  activeWorkspaceId?: string;
 }
 
 const EV_PATTERN = /(\[(?:EV|RSK|DEC|DOC)-[A-Z0-9]+\])/g;
@@ -50,11 +51,60 @@ function CollapsibleBubble({ text, isUser }: { text: string; isUser: boolean }) 
   );
 }
 
-const STARTER_CHIPS = [
-  'What are the main planning approval risks?',
-  'Which decisions have been made so far?',
-  'What evidence is missing for a full diagnosis?',
-];
+const WORKSPACE_CONTEXT: Record<string, {
+  greeting: string;
+  sampleQ: string;
+  sampleA: string;
+  riskTitle: string;
+  risks: { label: string; conf: string; confColor: string; detail: string }[];
+  chips: string[];
+}> = {
+  'harbour-tower': {
+    greeting: "Hi Amelia — I'm across the Harbour Tower project. Ask me anything.",
+    sampleQ: "What are the key risks to planning approval?",
+    sampleA: "The top risks are [RSK-02] planning approval delay and [RSK-01] structural podium load capacity, both flagged in your council feedback and structural review.",
+    riskTitle: "Top Planning Risks",
+    risks: [
+      { label: "Planning approval delay",   conf: "81%", confColor: "#10b981", detail: "High impact · Medium likelihood\nCouncil setback and podium height objections." },
+      { label: "Structural podium failure",  conf: "72%", confColor: "#f59e0b", detail: "High impact · Medium likelihood\nPeer review of 1998 as-builts still in progress." },
+    ],
+    chips: [
+      "What are the main planning approval risks?",
+      "Which decisions have been made so far?",
+      "What evidence is missing for the podium review?",
+    ],
+  },
+  'facilities': {
+    greeting: "Hi — I'm monitoring the Facilities Management incident. What do you need?",
+    sampleQ: "What's the current status of the HVAC incident?",
+    sampleA: "Chiller-02 is showing critical coolant pressure drop [EV-LOG-02]. The vendor SLA is void [EV-003] and emergency procurement is underway.",
+    riskTitle: "Active Incident Risks",
+    risks: [
+      { label: "Full HVAC failure — North Wing", conf: "82%", confColor: "#ef4444", detail: "High impact · High likelihood\nHeatwave arrives in 4 days. Chiller-02 critical." },
+      { label: "Tenant liability exposure",       conf: "77%", confColor: "#f59e0b", detail: "High impact · Medium likelihood\nSLA void — direct liability without active cover." },
+    ],
+    chips: [
+      "What triggered the HVAC incident?",
+      "What decisions have been made so far?",
+      "What is the tenant liability exposure?",
+    ],
+  },
+  'enterprise': {
+    greeting: "Hi — I'm tracking the APAC supply chain situation. What do you need to know?",
+    sampleQ: "What's the impact of the APAC logistics delay?",
+    sampleA: "The 14-day port delay [ENT-LOG-01] exceeds Q3 client SLA windows [ENT-DOC-01]. Penalty clauses apply. Contingency routing has been activated.",
+    riskTitle: "Active Business Risks",
+    risks: [
+      { label: "Q3 client penalty clauses triggered", conf: "88%", confColor: "#ef4444", detail: "High impact · High likelihood\n14-day delay breaches 2 of 3 contracts." },
+      { label: "APAC engineering capacity loss",       conf: "69%", confColor: "#f59e0b", detail: "High impact · Medium likelihood\n12% turnover — Q4 delivery capacity at risk." },
+    ],
+    chips: [
+      "What is the Q3 penalty exposure?",
+      "Which decisions have been made on the delay?",
+      "What is the contingency routing plan?",
+    ],
+  },
+};
 
 export function AdvisorPanel({
   chatMessage,
@@ -64,10 +114,20 @@ export function AdvisorPanel({
   isListening,
   handleToggleListening,
   className = 'advisor',
-  isAgentThinking
+  isAgentThinking,
+  activeWorkspaceId = 'harbour-tower',
 }: AdvisorPanelProps) {
+  const ctx = WORKSPACE_CONTEXT[activeWorkspaceId] ?? WORKSPACE_CONTEXT['harbour-tower'];
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
+  const [activeModel, setActiveModel] = useState('');
+
+  useEffect(() => {
+    fetch('/api/health')
+      .then(r => r.json())
+      .then(d => setActiveModel(d.model ?? ''))
+      .catch(() => {});
+  }, []);
 
   React.useEffect(() => {
     if (scrollRef.current) {
@@ -107,45 +167,33 @@ export function AdvisorPanel({
           <>
             <div className="message">
               <div className="spark">✦</div>
-              <div className="bubble">Hi Amelia, how can I help you understand this project?</div>
+              <div className="bubble">{ctx.greeting}</div>
             </div>
             <div className="message user">
-              <div className="bubble">What are the key risks to the planning approval for this extension?</div>
+              <div className="bubble">{ctx.sampleQ}</div>
             </div>
             <div className="message">
               <div className="spark">✦</div>
               <div className="bubble">
-                {renderWithEvidenceChipsSafe(
-                  'Here are the top planning-related risks based on your project evidence [EV-0012] and council feedback [RSK-03].'
-                )}
+                {renderWithEvidenceChipsSafe(ctx.sampleA)}
               </div>
             </div>
             <div className="risk-panel">
-              <h3>Top Planning Risks</h3>
-              <div className="risk-item">
-                <div className="risk-num">1</div>
-                <div className="risk-copy" style={{ width: '100%', display: 'block' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                    <span style={{ color: 'var(--text)', fontWeight: 'bold' }}>Planning approval delay</span>
-                    <span style={{ fontSize: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '2px 6px', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.5)' }}>85% Confidence</span>
-                  </div>
-                  <div style={{ color: 'var(--muted)', lineHeight: '1.5', fontSize: '12px' }}>
-                    High impact · Medium likelihood<br/>Council feedback on height and podium setback.
-                  </div>
-                </div>
-              </div>
-              <div className="risk-item">
-                <div className="risk-num">2</div>
-                <div className="risk-copy" style={{ width: '100%', display: 'block' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                    <span style={{ color: 'var(--text)', fontWeight: 'bold' }}>Community objections</span>
-                    <span style={{ fontSize: '10px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', padding: '2px 6px', borderRadius: '12px', border: '1px solid rgba(245, 158, 11, 0.5)' }}>72% Confidence</span>
-                  </div>
-                  <div style={{ color: 'var(--muted)', lineHeight: '1.5', fontSize: '12px' }}>
-                    Medium impact · Medium likelihood<br/>Noise and overshadowing concerns raised in consultation.
+              <h3>{ctx.riskTitle}</h3>
+              {ctx.risks.map((r, i) => (
+                <div className="risk-item" key={i}>
+                  <div className="risk-num">{i + 1}</div>
+                  <div className="risk-copy" style={{ width: '100%', display: 'block' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                      <span style={{ color: 'var(--text)', fontWeight: 'bold' }}>{r.label}</span>
+                      <span style={{ fontSize: '10px', background: `${r.confColor}26`, color: r.confColor, padding: '2px 6px', borderRadius: '12px', border: `1px solid ${r.confColor}80` }}>{r.conf}</span>
+                    </div>
+                    <div style={{ color: 'var(--muted)', lineHeight: '1.5', fontSize: '12px', whiteSpace: 'pre-line' }}>
+                      {r.detail}
+                    </div>
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
           </>
         ) : (
@@ -177,7 +225,7 @@ export function AdvisorPanel({
       <div className="chat-input">
         {chatHistory.length === 0 && (
           <div className="starter-chips">
-            {STARTER_CHIPS.map(chip => (
+            {ctx.chips.map(chip => (
               <button key={chip} className="starter-chip" onClick={() => handleChipClick(chip)}>
                 {chip}
               </button>
@@ -226,7 +274,7 @@ export function AdvisorPanel({
         </div>
         <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
           <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{width: 6, height: 6, borderRadius: '50%', background: '#10b981', opacity: 0.8}}></div> Direct Routing</span>
-          <span>gemini-2.0-flash</span>
+          <span>{activeModel || 'angela'}</span>
         </div>
 
       </div>

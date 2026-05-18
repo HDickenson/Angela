@@ -36,6 +36,7 @@ export function LeftRail({
         isListening={isListening}
         handleToggleListening={handleToggleListening}
         isAgentThinking={isAgentThinking}
+        activeWorkspaceId={activeWorkspaceId}
       />
     </aside>
   );

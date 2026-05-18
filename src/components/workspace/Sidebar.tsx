@@ -1,4 +1,31 @@
 import React from 'react';
+import {
+  ChevronDown,
+  ChevronRight,
+  LayoutDashboard,
+  FolderOpen,
+  CheckSquare,
+  AlertTriangle,
+  Users,
+  ScrollText,
+  Settings,
+} from 'lucide-react';
+
+const PROJECTS = [
+  { id: 'harbour-tower', name: 'Harbour Tower Extension', abbr: 'HT' },
+  { id: 'facilities',    name: 'Facilities Management',   abbr: 'FM' },
+  { id: 'enterprise',   name: 'Enterprise Operations',    abbr: 'EO' },
+];
+
+const SUB_ITEMS = [
+  { id: 'projects',  label: 'Canvas',              Icon: LayoutDashboard },
+  { id: 'sources',   label: 'Sources',             Icon: FolderOpen      },
+  { id: 'decisions', label: 'Decisions',           Icon: CheckSquare     },
+  { id: 'risks',     label: 'Risks',               Icon: AlertTriangle   },
+  { id: 'people',    label: 'People & Orgs',       Icon: Users           },
+  { id: 'audit',     label: 'Audit Trail',         Icon: ScrollText      },
+  { id: 'settings',  label: 'Settings',            Icon: Settings        },
+];
 
 export interface SidebarProps {
   currentRole: string;
@@ -8,7 +35,13 @@ export interface SidebarProps {
   setActiveTab: (tab: string) => void;
 }
 
-export function Sidebar({ currentRole, activeWorkspaceId, setActiveWorkspaceId, activeTab, setActiveTab }: SidebarProps) {
+export function Sidebar({
+  currentRole,
+  activeWorkspaceId,
+  setActiveWorkspaceId,
+  activeTab,
+  setActiveTab,
+}: SidebarProps) {
   return (
     <div className="rail-nav">
       <div className="brand">
@@ -16,29 +49,45 @@ export function Sidebar({ currentRole, activeWorkspaceId, setActiveWorkspaceId, 
         <div className="brand-name">Angela</div>
       </div>
 
-      <nav className="nav-list" style={{ marginTop: '14px' }}>
-        <div className={`nav-item ${activeTab === 'sources' ? 'active' : ''}`} onClick={() => setActiveTab('sources')}><span className="icon">⌘</span><span>Sources</span></div>
-        <div className={`nav-item ${activeTab === 'projects' ? 'active' : ''}`} onClick={() => setActiveTab('projects')}><span className="icon">□</span><span>Projects</span></div>
-        <div className={`nav-item ${activeTab === 'decisions' ? 'active' : ''}`} onClick={() => setActiveTab('decisions')}><span className="icon">✓</span><span>Decisions</span></div>
-        <div className={`nav-item ${activeTab === 'risks' ? 'active' : ''}`} onClick={() => setActiveTab('risks')}><span className="icon">▱</span><span>Risks</span></div>
-        <div className={`nav-item ${activeTab === 'people' ? 'active' : ''}`} onClick={() => setActiveTab('people')}><span className="icon">♙</span><span>People &amp; Organisations</span></div>
-        <div className={`nav-item ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => setActiveTab('audit')}><span className="icon">◎</span><span>Audit Trail</span></div>
-        <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}><span className="icon">⚙</span><span>Settings</span></div>
+      <div className="nav-section-label">Projects</div>
+
+      <nav className="project-nav">
+        {PROJECTS.map(p => {
+          const isActive = activeWorkspaceId === p.id;
+          return (
+            <div key={p.id} className="project-group">
+              <div
+                className={`project-row${isActive ? ' active' : ''}`}
+                onClick={() => {
+                  setActiveWorkspaceId(p.id);
+                  if (!isActive) setActiveTab('projects');
+                }}
+              >
+                <div className="project-avatar">{p.abbr}</div>
+                <span className="project-name">{p.name}</span>
+                <span className="project-chevron">
+                  {isActive ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                </span>
+              </div>
+
+              {isActive && (
+                <div className="project-children">
+                  {SUB_ITEMS.map(({ id, label, Icon }) => (
+                    <div
+                      key={id}
+                      className={`sub-item${activeTab === id ? ' active' : ''}`}
+                      onClick={() => setActiveTab(id)}
+                    >
+                      <Icon size={13} />
+                      <span>{label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </nav>
-
-      <div style={{ height: '1px', background: 'var(--line)', margin: '12px 0' }} />
-
-      <div className="workspace-list">
-        <div className={`workspace-item ${activeWorkspaceId === 'harbour-tower' ? 'active' : ''}`} onClick={() => setActiveWorkspaceId('harbour-tower')} style={{ cursor: 'pointer' }}>
-          <span className="icon">▧</span><span>Harbour Tower Extension</span>
-        </div>
-        <div className={`workspace-item ${activeWorkspaceId === 'facilities' ? 'active' : ''}`} onClick={() => setActiveWorkspaceId('facilities')} style={{ cursor: 'pointer' }}>
-          <span className="icon">⌬</span><span>Facilities Management</span>
-        </div>
-        <div className={`workspace-item ${activeWorkspaceId === 'enterprise' ? 'active' : ''}`} onClick={() => setActiveWorkspaceId('enterprise')} style={{ cursor: 'pointer' }}>
-          <span className="icon">◈</span><span>Enterprise Operations</span>
-        </div>
-      </div>
 
       <div style={{ flex: 1 }} />
 

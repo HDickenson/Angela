@@ -7,3 +7,8 @@ coverage/
 .env*
 !.env.example
 .vercel
+screenshot.cjs
+review.cjs
+screenshot_*.png
+ruvector.db
+.swarm/
